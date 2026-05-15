@@ -1,0 +1,304 @@
+class AudioEngine {
+    constructor() {
+        this.ctx = null;
+        this.masterGain = null;
+        this.masterAnalyserL = null;
+        this.masterAnalyserR = null;
+        this.masterCompressor = null;
+        this.masterLimiter = null;
+        this.masterEQ = {};
+        this.splitter = null;
+        this.merger = null;
+        this.isPlaying = false;
+        this.isPaused = false;
+        this.startTime = 0;
+        this.pauseTime = 0;
+        this.loopEnabled = false;
+        this.loopStart = 0;
+        this.loopEnd = 0;
+        this.sources = [];
+        this.tracks = [];
+        this.bpm = 120;
+        this.onTimeUpdate = null;
+        this._rafId = null;
+    }
+
+    async init() {
+        this.ctx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 44100 });
+
+        this.masterCompressor = this.ctx.createDynamicsCompressor();
+        this.masterCompressor.threshold.value = -24;
+        this.masterCompressor.knee.value = 12;
+        this.masterCompressor.ratio.value = 4;
+        this.masterCompressor.attack.value = 0.01;
+        this.masterCompressor.release.value = 0.25;
+
+        this.masterLimiter = this.ctx.createDynamicsCompressor();
+        this.masterLimiter.threshold.value = -0.3;
+        this.masterLimiter.knee.value = 0;
+        this.masterLimiter.ratio.value = 20;
+        this.masterLimiter.attack.value = 0.001;
+        this.masterLimiter.release.value = 0.01;
+
+        const bands = [
+            { name: 'low', freq: 80, type: 'lowshelf' },
+            { name: 'lowmid', freq: 400, type: 'peaking' },
+            { name: 'mid', freq: 1000, type: 'peaking' },
+            { name: 'highmid', freq: 4000, type: 'peaking' },
+            { name: 'high', freq: 12000, type: 'highshelf' }
+        ];
+
+        let prevNode = this.masterCompressor;
+        bands.forEach(band => {
+            const filter = this.ctx.createBiquadFilter();
+            filter.type = band.type;
+            filter.frequency.value = band.freq;
+            filter.gain.value = 0;
+            if (band.type === 'peaking') filter.Q.value = 1.5;
+            prevNode.connect(filter);
+            prevNode = filter;
+            this.masterEQ[band.name] = filter;
+        });
+
+        prevNode.connect(this.masterLimiter);
+
+        this.masterGain = this.ctx.createGain();
+        this.masterLimiter.connect(this.masterGain);
+
+        this.splitter = this.ctx.createChannelSplitter(2);
+        this.merger = this.ctx.createChannelMerger(2);
+
+        this.masterAnalyserL = this.ctx.createAnalyser();
+        this.masterAnalyserL.fftSize = 256;
+        this.masterAnalyserR = this.ctx.createAnalyser();
+        this.masterAnalyserR.fftSize = 256;
+
+        this.masterGain.connect(this.splitter);
+        this.splitter.connect(this.masterAnalyserL, 0);
+        this.splitter.connect(this.masterAnalyserR, 1);
+        this.masterGain.connect(this.ctx.destination);
+    }
+
+    async resume() {
+        if (this.ctx && this.ctx.state === 'suspended') {
+            await this.ctx.resume();
+        }
+    }
+
+    async decodeAudio(arrayBuffer) {
+        return await this.ctx.decodeAudioData(arrayBuffer);
+    }
+
+    createTrackNodes() {
+        const gainNode = this.ctx.createGain();
+        const panNode = this.ctx.createStereoPanner();
+        const analyser = this.ctx.createAnalyser();
+        analyser.fftSize = 256;
+
+        gainNode.connect(panNode);
+        panNode.connect(analyser);
+        analyser.connect(this.masterCompressor);
+
+        return { gainNode, panNode, analyser };
+    }
+
+    getCurrentTime() {
+        if (!this.isPlaying) return this.pauseTime;
+        return this.ctx.currentTime - this.startTime + this.pauseTime;
+    }
+
+    play(tracks) {
+        if (!this.ctx) return;
+        this.resume();
+
+        this.stopAllSources();
+        this.sources = [];
+
+        const offset = this.pauseTime;
+        this.startTime = this.ctx.currentTime;
+
+        tracks.forEach(track => {
+            if (!track.clips || track.muted) return;
+            track.clips.forEach(clip => {
+                if (!clip.buffer) return;
+                const source = this.ctx.createBufferSource();
+                source.buffer = clip.buffer;
+
+                const clipStart = clip.startTime || 0;
+                const clipEnd = clipStart + clip.buffer.duration;
+
+                if (offset >= clipEnd) return;
+
+                source.connect(track.nodes.gainNode);
+
+                const sourceOffset = Math.max(0, offset - clipStart);
+                const when = Math.max(0, clipStart - offset);
+
+                source.start(this.ctx.currentTime + when, sourceOffset);
+                this.sources.push(source);
+            });
+        });
+
+        this.isPlaying = true;
+        this.isPaused = false;
+        this._startTimeUpdate();
+    }
+
+    pause() {
+        this.pauseTime = this.getCurrentTime();
+        this.stopAllSources();
+        this.isPlaying = false;
+        this.isPaused = true;
+        this._stopTimeUpdate();
+    }
+
+    stop() {
+        this.stopAllSources();
+        this.pauseTime = 0;
+        this.isPlaying = false;
+        this.isPaused = false;
+        this._stopTimeUpdate();
+        if (this.onTimeUpdate) this.onTimeUpdate(0);
+    }
+
+    stopAllSources() {
+        this.sources.forEach(s => {
+            try { s.stop(); } catch (e) {}
+        });
+        this.sources = [];
+    }
+
+    seek(time) {
+        this.pauseTime = Math.max(0, time);
+        if (this.isPlaying) {
+            this.play(this.tracks);
+        } else if (this.onTimeUpdate) {
+            this.onTimeUpdate(this.pauseTime);
+        }
+    }
+
+    setMasterVolume(value) {
+        if (this.masterGain) {
+            this.masterGain.gain.setValueAtTime(value, this.ctx.currentTime);
+        }
+    }
+
+    setMasterEQ(band, value) {
+        if (this.masterEQ[band]) {
+            this.masterEQ[band].gain.setValueAtTime(value, this.ctx.currentTime);
+        }
+    }
+
+    setMasterCompressor(param, value) {
+        if (this.masterCompressor) {
+            switch (param) {
+                case 'threshold': this.masterCompressor.threshold.value = value; break;
+                case 'ratio': this.masterCompressor.ratio.value = value; break;
+                case 'attack': this.masterCompressor.attack.value = value / 1000; break;
+                case 'release': this.masterCompressor.release.value = value / 1000; break;
+            }
+        }
+    }
+
+    setMasterLimiter(param, value) {
+        if (this.masterLimiter) {
+            switch (param) {
+                case 'ceiling': this.masterLimiter.threshold.value = value; break;
+                case 'gain':
+                    this.masterGain.gain.setValueAtTime(
+                        Math.pow(10, value / 20),
+                        this.ctx.currentTime
+                    );
+                    break;
+            }
+        }
+    }
+
+    getMeterData(analyser) {
+        const data = new Uint8Array(analyser.frequencyBinCount);
+        analyser.getByteFrequencyData(data);
+        let sum = 0;
+        for (let i = 0; i < data.length; i++) sum += data[i];
+        return sum / data.length / 255;
+    }
+
+    _startTimeUpdate() {
+        const update = () => {
+            if (!this.isPlaying) return;
+            const time = this.getCurrentTime();
+            if (this.onTimeUpdate) this.onTimeUpdate(time);
+
+            if (this.loopEnabled && time >= this.loopEnd && this.loopEnd > this.loopStart) {
+                this.pauseTime = this.loopStart;
+                this.play(this.tracks);
+                return;
+            }
+
+            this._rafId = requestAnimationFrame(update);
+        };
+        this._rafId = requestAnimationFrame(update);
+    }
+
+    _stopTimeUpdate() {
+        if (this._rafId) {
+            cancelAnimationFrame(this._rafId);
+            this._rafId = null;
+        }
+    }
+
+    renderOffline(tracks, duration, sampleRate = 44100) {
+        const offlineCtx = new OfflineAudioContext(2, duration * sampleRate, sampleRate);
+
+        const masterGain = offlineCtx.createGain();
+        masterGain.connect(offlineCtx.destination);
+
+        const compressor = offlineCtx.createDynamicsCompressor();
+        compressor.threshold.value = this.masterCompressor.threshold.value;
+        compressor.ratio.value = this.masterCompressor.ratio.value;
+        compressor.attack.value = this.masterCompressor.attack.value;
+        compressor.release.value = this.masterCompressor.release.value;
+
+        const limiter = offlineCtx.createDynamicsCompressor();
+        limiter.threshold.value = this.masterLimiter.threshold.value;
+        limiter.ratio.value = this.masterLimiter.ratio.value;
+        limiter.attack.value = this.masterLimiter.attack.value;
+        limiter.release.value = this.masterLimiter.release.value;
+
+        let prevNode = compressor;
+        Object.keys(this.masterEQ).forEach(bandName => {
+            const origFilter = this.masterEQ[bandName];
+            const filter = offlineCtx.createBiquadFilter();
+            filter.type = origFilter.type;
+            filter.frequency.value = origFilter.frequency.value;
+            filter.gain.value = origFilter.gain.value;
+            if (origFilter.Q) filter.Q.value = origFilter.Q.value;
+            prevNode.connect(filter);
+            prevNode = filter;
+        });
+
+        prevNode.connect(limiter);
+        limiter.connect(masterGain);
+
+        tracks.forEach(track => {
+            if (track.muted) return;
+            const gain = offlineCtx.createGain();
+            gain.gain.value = track.volume;
+            const pan = offlineCtx.createStereoPanner();
+            pan.pan.value = track.pan;
+            gain.connect(pan);
+            pan.connect(compressor);
+
+            track.clips.forEach(clip => {
+                if (!clip.buffer) return;
+                const source = offlineCtx.createBufferSource();
+                source.buffer = clip.buffer;
+                source.connect(gain);
+                source.start(clip.startTime || 0);
+            });
+        });
+
+        return offlineCtx.startRendering();
+    }
+}
+
+window.AudioEngine = AudioEngine;

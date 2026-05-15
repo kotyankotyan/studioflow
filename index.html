@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StudioFlow DAW</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Top Bar (Simplified) -->
+        <header id="top-bar">
+            <div class="logo">
+                <i class="fas fa-music"></i>
+                <span>StudioFlow</span>
+            </div>
+            <div class="transport-controls">
+                <button id="btn-rewind" title="巻き戻し"><i class="fas fa-backward"></i></button>
+                <button id="btn-play" title="再生"><i class="fas fa-play"></i></button>
+                <button id="btn-stop" title="停止"><i class="fas fa-stop"></i></button>
+                <button id="btn-loop" title="ループ"><i class="fas fa-repeat"></i></button>
+                <div class="time-display">
+                    <span id="current-time">00:00.000</span>
+                    <span class="separator">/</span>
+                    <span id="total-time">00:00.000</span>
+                </div>
+                <div class="bpm-control">
+                    <label>BPM</label>
+                    <input type="number" id="bpm-input" value="120" min="20" max="300">
+                </div>
+            </div>
+            <div class="top-actions">
+                <button id="btn-undo" title="元に戻す"><i class="fas fa-undo"></i></button>
+                <button id="btn-redo" title="やり直し"><i class="fas fa-redo"></i></button>
+                <button id="btn-export" title="書き出し" class="export-btn-top"><i class="fas fa-download"></i> 書き出し</button>
+            </div>
+        </header>
+
+        <!-- ============================================ -->
+        <!-- EASY MODE: Beginner-friendly main interface  -->
+        <!-- ============================================ -->
+        <div id="easy-mode">
+            <!-- Step indicator -->
+            <div class="step-indicator">
+                <div class="step active" data-step="1">
+                    <div class="step-number">1</div>
+                    <span>アップロード</span>
+                </div>
+                <div class="step-line"></div>
+                <div class="step" data-step="2">
+                    <div class="step-number">2</div>
+                    <span>調整する</span>
+                </div>
+                <div class="step-line"></div>
+                <div class="step" data-step="3">
+                    <div class="step-number">3</div>
+                    <span>書き出し</span>
+                </div>
+            </div>
+
+            <!-- Part Cards Area -->
+            <div id="easy-parts-area">
+                <!-- Populated after import -->
+                <div id="easy-empty-state">
+                    <i class="fas fa-cloud-upload-alt fa-3x"></i>
+                    <h2>曲をアップロードしよう</h2>
+                    <p>音楽ファイルをアップロードすると、<br>ボーカル・ドラム・ベースなどに自動で分けます。<br>あとはスライダーで好みに調整するだけ！</p>
+                    <button id="btn-easy-import" class="big-import-btn">
+                        <i class="fas fa-cloud-upload-alt"></i> 曲をアップロード
+                    </button>
+                    <button id="btn-easy-demo" class="demo-btn">
+                        <i class="fas fa-play-circle"></i> デモで試す
+                    </button>
+                    <p class="file-hint">MP3, WAV, FLAC, OGG, AAC に対応</p>
+                </div>
+            </div>
+
+            <!-- Bottom Action Bar (visible after import) -->
+            <div id="easy-action-bar" class="hidden">
+                <div class="action-bar-left">
+                    <button id="btn-easy-reimport" class="action-btn">
+                        <i class="fas fa-cloud-upload-alt"></i> 別の曲
+                    </button>
+                    <button id="btn-easy-preset" class="action-btn preset-btn">
+                        <i class="fas fa-magic"></i> かんたんプリセット
+                    </button>
+                    <span id="storage-indicator" class="storage-indicator" title="ブラウザに自動保存中">💾 保存済み</span>
+                </div>
+                <div class="action-bar-center">
+                    <button id="btn-easy-compare" class="compare-btn">
+                        <i class="fas fa-exchange-alt"></i> 調整前と比較
+                    </button>
+                </div>
+                <div class="action-bar-right">
+                    <button id="btn-toggle-advanced" class="action-btn advanced-toggle">
+                        <i class="fas fa-cog"></i> 上級者モード
+                    </button>
+                    <button id="btn-easy-export" class="action-btn export-action-btn">
+                        <i class="fas fa-download"></i> 書き出し
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================ -->
+        <!-- ADVANCED MODE: Full DAW interface (hidden)   -->
+        <!-- ============================================ -->
+        <div id="advanced-mode" class="hidden">
+            <div id="main-content">
+                <aside id="left-sidebar">
+                    <div class="tool-section">
+                        <h3>ツール</h3>
+                        <button class="tool-btn active" data-tool="select" title="選択"><i class="fas fa-mouse-pointer"></i></button>
+                        <button class="tool-btn" data-tool="cut" title="カット"><i class="fas fa-cut"></i></button>
+                        <button class="tool-btn" data-tool="move" title="移動"><i class="fas fa-arrows-alt"></i></button>
+                        <button class="tool-btn" data-tool="zoom" title="ズーム"><i class="fas fa-search-plus"></i></button>
+                        <button class="tool-btn" data-tool="draw" title="オートメーション描画"><i class="fas fa-pen"></i></button>
+                    </div>
+                    <div class="tool-section">
+                        <h3>読込</h3>
+                        <button id="btn-import-audio" title="曲をアップロード" class="main-import-btn"><i class="fas fa-cloud-upload-alt"></i></button>
+                        <button id="btn-import-multiple" title="リミックス用に複数曲"><i class="fas fa-layer-group"></i></button>
+                        <button id="btn-add-track" title="空トラック追加"><i class="fas fa-plus"></i></button>
+                    </div>
+                    <div class="tool-section">
+                        <h3>AI機能</h3>
+                        <button id="btn-stem-split" title="選択トラックを再分離"><i class="fas fa-project-diagram"></i> 分離</button>
+                        <button id="btn-midi-convert" title="MIDI変換"><i class="fas fa-keyboard"></i> MIDI</button>
+                        <button id="btn-vocal-enhance" title="ボーカル強化"><i class="fas fa-microphone"></i> 強化</button>
+                    </div>
+                </aside>
+
+                <div id="track-area">
+                    <div id="timeline-ruler">
+                        <canvas id="ruler-canvas"></canvas>
+                    </div>
+                    <div id="tracks-container"></div>
+                    <div id="playhead"></div>
+                </div>
+
+                <aside id="right-sidebar">
+                    <div class="panel" id="panel-properties">
+                        <h3>プロパティ</h3>
+                        <div id="properties-content">
+                            <p class="hint">トラックまたはクリップを選択してください</p>
+                        </div>
+                    </div>
+                    <div class="panel" id="panel-effects">
+                        <h3>エフェクト</h3>
+                        <div class="effect-list" id="effect-list">
+                            <button class="effect-add-btn" id="btn-add-effect">
+                                <i class="fas fa-plus"></i> エフェクト追加
+                            </button>
+                        </div>
+                    </div>
+                </aside>
+            </div>
+
+            <div id="bottom-panel">
+                <div class="bottom-tabs">
+                    <button class="bottom-tab active" data-panel="mixer">ミキサー</button>
+                    <button class="bottom-tab" data-panel="mastering">マスタリング</button>
+                    <button class="bottom-tab" data-panel="vocal">ボーカル補正</button>
+                    <button class="bottom-tab" data-panel="automation">オートメーション</button>
+                    <button class="bottom-tab" data-panel="remix">リミックス</button>
+                </div>
+
+                <div class="bottom-content active" id="panel-mixer">
+                    <div class="mixer-wrapper">
+                        <div id="mixer-channels"></div>
+                        <div class="master-channel">
+                            <h4>Master</h4>
+                            <div class="meter-container">
+                                <canvas id="master-meter-l" class="meter" width="20" height="52"></canvas>
+                                <canvas id="master-meter-r" class="meter" width="20" height="52"></canvas>
+                            </div>
+                            <input type="range" id="master-volume" class="vertical-slider" min="0" max="1.5" step="0.01" value="1" orient="vertical">
+                            <span class="volume-label" id="master-volume-label">0 dB</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bottom-content" id="panel-mastering">
+                    <div class="mastering-chain">
+                        <div class="mastering-module">
+                            <h4><i class="fas fa-sliders-h"></i> EQ</h4>
+                            <div class="eq-controls">
+                                <div class="eq-band"><label>Low</label><input type="range" class="master-eq" data-band="low" min="-12" max="12" step="0.5" value="0"><span class="eq-value">0 dB</span></div>
+                                <div class="eq-band"><label>Low-Mid</label><input type="range" class="master-eq" data-band="lowmid" min="-12" max="12" step="0.5" value="0"><span class="eq-value">0 dB</span></div>
+                                <div class="eq-band"><label>Mid</label><input type="range" class="master-eq" data-band="mid" min="-12" max="12" step="0.5" value="0"><span class="eq-value">0 dB</span></div>
+                                <div class="eq-band"><label>High-Mid</label><input type="range" class="master-eq" data-band="highmid" min="-12" max="12" step="0.5" value="0"><span class="eq-value">0 dB</span></div>
+                                <div class="eq-band"><label>High</label><input type="range" class="master-eq" data-band="high" min="-12" max="12" step="0.5" value="0"><span class="eq-value">0 dB</span></div>
+                            </div>
+                        </div>
+                        <div class="mastering-module">
+                            <h4><i class="fas fa-compress-arrows-alt"></i> コンプレッサー</h4>
+                            <div class="compressor-controls">
+                                <div class="ctrl-group"><label>スレッショルド</label><input type="range" id="master-comp-threshold" min="-60" max="0" step="1" value="-24"><span class="ctrl-value">-24 dB</span></div>
+                                <div class="ctrl-group"><label>レシオ</label><input type="range" id="master-comp-ratio" min="1" max="20" step="0.5" value="4"><span class="ctrl-value">4:1</span></div>
+                                <div class="ctrl-group"><label>アタック</label><input type="range" id="master-comp-attack" min="0" max="100" step="1" value="10"><span class="ctrl-value">10 ms</span></div>
+                                <div class="ctrl-group"><label>リリース</label><input type="range" id="master-comp-release" min="10" max="1000" step="10" value="250"><span class="ctrl-value">250 ms</span></div>
+                            </div>
+                        </div>
+                        <div class="mastering-module">
+                            <h4><i class="fas fa-volume-up"></i> リミッター</h4>
+                            <div class="limiter-controls">
+                                <div class="ctrl-group"><label>シーリング</label><input type="range" id="master-limiter-ceiling" min="-6" max="0" step="0.1" value="-0.3"><span class="ctrl-value">-0.3 dB</span></div>
+                                <div class="ctrl-group"><label>ゲイン</label><input type="range" id="master-limiter-gain" min="0" max="12" step="0.5" value="0"><span class="ctrl-value">0 dB</span></div>
+                            </div>
+                        </div>
+                        <div class="mastering-module">
+                            <h4><i class="fas fa-headphones"></i> ステレオ</h4>
+                            <div class="ctrl-group"><label>幅</label><input type="range" id="master-stereo-width" min="0" max="200" step="5" value="100"><span class="ctrl-value">100%</span></div>
+                        </div>
+                        <div class="mastering-presets">
+                            <h4>プリセット</h4>
+                            <select id="mastering-preset">
+                                <option value="none">カスタム</option>
+                                <option value="pop">ポップ</option>
+                                <option value="rock">ロック</option>
+                                <option value="hiphop">ヒップホップ</option>
+                                <option value="edm">EDM</option>
+                                <option value="jazz">ジャズ</option>
+                                <option value="classical">クラシック</option>
+                                <option value="podcast">ポッドキャスト</option>
+                                <option value="loudness">ラウドネス最大化</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bottom-content" id="panel-vocal">
+                    <div class="vocal-processor">
+                        <div class="vocal-module">
+                            <h4><i class="fas fa-music"></i> ピッチ補正</h4>
+                            <div class="pitch-controls">
+                                <div class="ctrl-group"><label>補正強度</label><input type="range" id="vocal-pitch-strength" min="0" max="100" step="1" value="50"><span class="ctrl-value">50%</span></div>
+                                <div class="ctrl-group"><label>スピード</label><input type="range" id="vocal-pitch-speed" min="1" max="100" step="1" value="30"><span class="ctrl-value">30 ms</span></div>
+                                <div class="ctrl-group"><label>キー</label><select id="vocal-key"><option value="C">C (ド)</option><option value="C#">C#</option><option value="D">D (レ)</option><option value="D#">D#</option><option value="E">E (ミ)</option><option value="F">F (ファ)</option><option value="F#">F#</option><option value="G">G (ソ)</option><option value="G#">G#</option><option value="A">A (ラ)</option><option value="A#">A#</option><option value="B">B (シ)</option></select></div>
+                                <div class="ctrl-group"><label>スケール</label><select id="vocal-scale"><option value="major">メジャー</option><option value="minor">マイナー</option><option value="chromatic">クロマチック</option><option value="pentatonic">ペンタトニック</option></select></div>
+                            </div>
+                        </div>
+                        <div class="vocal-module">
+                            <h4><i class="fas fa-microphone-alt"></i> クリーナー</h4>
+                            <div class="cleaner-controls">
+                                <div class="ctrl-group"><label>ノイズ除去</label><input type="range" id="vocal-denoise" min="0" max="100" step="1" value="30"><span class="ctrl-value">30%</span></div>
+                                <div class="ctrl-group"><label>歯擦音除去</label><input type="range" id="vocal-deesser" min="0" max="100" step="1" value="40"><span class="ctrl-value">40%</span></div>
+                                <div class="ctrl-group"><label>明瞭度</label><input type="range" id="vocal-presence" min="-12" max="12" step="0.5" value="3"><span class="ctrl-value">+3 dB</span></div>
+                                <div class="ctrl-group"><label>ブレス除去</label><input type="range" id="vocal-breath" min="0" max="100" step="1" value="20"><span class="ctrl-value">20%</span></div>
+                            </div>
+                        </div>
+                        <div class="vocal-module">
+                            <h4><i class="fas fa-magic"></i> エフェクト</h4>
+                            <div class="vocal-fx-controls">
+                                <div class="ctrl-group"><label>リバーブ</label><input type="range" id="vocal-reverb" min="0" max="100" step="1" value="20"><span class="ctrl-value">20%</span></div>
+                                <div class="ctrl-group"><label>ディレイ</label><input type="range" id="vocal-delay" min="0" max="100" step="1" value="0"><span class="ctrl-value">0%</span></div>
+                                <div class="ctrl-group"><label>厚み</label><input type="range" id="vocal-doubling" min="0" max="100" step="1" value="0"><span class="ctrl-value">0%</span></div>
+                                <div class="ctrl-group"><label>ハーモニー</label><select id="vocal-harmony"><option value="none">なし</option><option value="third">3度上</option><option value="fifth">5度上</option><option value="octave">オクターブ上</option><option value="third-below">3度下</option></select></div>
+                            </div>
+                        </div>
+                        <div class="vocal-module">
+                            <h4><i class="fas fa-venus-mars"></i> ボイスチェンジ</h4>
+                            <div class="voice-change-buttons">
+                                <button id="btn-voice-to-female" class="voice-change-btn female"><i class="fas fa-arrow-up"></i> 男声→女声</button>
+                                <button id="btn-voice-to-male" class="voice-change-btn male"><i class="fas fa-arrow-down"></i> 女声→男声</button>
+                            </div>
+                            <div class="ctrl-group" style="margin-top:6px"><label>変換強度</label><input type="range" id="voice-change-amount" min="1" max="8" step="0.5" value="4"><span class="ctrl-value">4 半音</span></div>
+                        </div>
+                        <div class="vocal-presets">
+                            <h4>プリセット</h4>
+                            <select id="vocal-preset"><option value="none">カスタム</option><option value="clean">クリーン</option><option value="warm">ウォーム</option><option value="bright">ブライト</option><option value="radio">ラジオ</option><option value="telephone">テレフォン</option><option value="autotune">オートチューン</option></select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bottom-content" id="panel-automation">
+                    <div class="automation-editor">
+                        <div class="automation-toolbar">
+                            <label>パラメータ:</label>
+                            <select id="automation-param">
+                                <option value="volume">音量</option><option value="pan">パン</option><option value="eq-low">EQ Low</option><option value="eq-mid">EQ Mid</option><option value="eq-high">EQ High</option><option value="reverb">リバーブ</option><option value="filter">フィルター</option>
+                            </select>
+                            <button id="btn-auto-clear">クリア</button>
+                            <button id="btn-auto-smooth">スムーズ</button>
+                            <label>トラック:</label>
+                            <select id="automation-track"></select>
+                        </div>
+                        <canvas id="automation-canvas" width="1200" height="200"></canvas>
+                    </div>
+                </div>
+
+                <div class="bottom-content" id="panel-remix">
+                    <div class="remix-editor">
+                        <div class="remix-toolbar">
+                            <button id="btn-remix-add"><i class="fas fa-plus"></i> 曲を追加</button>
+                            <button id="btn-remix-auto"><i class="fas fa-magic"></i> 自動ミックス</button>
+                            <div class="crossfade-control">
+                                <label>クロスフェード:</label>
+                                <input type="range" id="crossfade-duration" min="0" max="10" step="0.1" value="3">
+                                <span id="crossfade-value">3.0秒</span>
+                            </div>
+                            <select id="crossfade-type">
+                                <option value="linear">リニア</option>
+                                <option value="equal-power" selected>イコールパワー</option>
+                                <option value="s-curve">Sカーブ</option>
+                                <option value="exponential">指数</option>
+                            </select>
+                        </div>
+                        <div id="remix-timeline"><div id="remix-tracks"></div></div>
+                        <div class="remix-sequence">
+                            <h4>再生順序 (ドラッグで並び替え)</h4>
+                            <div id="remix-sequence-list"></div>
+                            <p class="hint">曲を追加して再生順序を設定してください。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Back to easy mode button -->
+            <button id="btn-back-to-easy" class="back-easy-btn">
+                <i class="fas fa-arrow-left"></i> かんたんモードに戻る
+            </button>
+        </div>
+
+        <!-- Preset Popup -->
+        <div id="preset-popup" class="modal hidden">
+            <div class="modal-content preset-modal">
+                <div class="modal-header">
+                    <h2><i class="fas fa-magic"></i> かんたんプリセット</h2>
+                    <button class="modal-close">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <p style="color:var(--text-secondary);margin-bottom:16px;">ワンタップで曲の雰囲気を変えられます。気に入ったものを選んでください。</p>
+                    <div class="preset-grid">
+                        <button class="preset-card" data-preset="pop">
+                            <span class="preset-emoji">✨</span>
+                            <span class="preset-name">ポップ・キラキラ</span>
+                            <span class="preset-desc">明るくクリアな仕上がり</span>
+                        </button>
+                        <button class="preset-card" data-preset="rock">
+                            <span class="preset-emoji">🔥</span>
+                            <span class="preset-name">ロック・パワフル</span>
+                            <span class="preset-desc">力強くて迫力のある音</span>
+                        </button>
+                        <button class="preset-card" data-preset="hiphop">
+                            <span class="preset-emoji">🎧</span>
+                            <span class="preset-name">ヒップホップ</span>
+                            <span class="preset-desc">低音が効いた重厚サウンド</span>
+                        </button>
+                        <button class="preset-card" data-preset="edm">
+                            <span class="preset-emoji">⚡</span>
+                            <span class="preset-name">EDM・クラブ</span>
+                            <span class="preset-desc">エネルギッシュでアゲアゲ</span>
+                        </button>
+                        <button class="preset-card" data-preset="chill">
+                            <span class="preset-emoji">🌙</span>
+                            <span class="preset-name">チル・おだやか</span>
+                            <span class="preset-desc">やわらかく落ち着いた音</span>
+                        </button>
+                        <button class="preset-card" data-preset="vocal-up">
+                            <span class="preset-emoji">🎤</span>
+                            <span class="preset-name">ボーカル際立ち</span>
+                            <span class="preset-desc">歌声をもっと前に出す</span>
+                        </button>
+                        <button class="preset-card" data-preset="bass-boost">
+                            <span class="preset-emoji">🔊</span>
+                            <span class="preset-name">重低音ブースト</span>
+                            <span class="preset-desc">ベースをガツンと強調</span>
+                        </button>
+                        <button class="preset-card" data-preset="karaoke">
+                            <span class="preset-emoji">🎵</span>
+                            <span class="preset-name">カラオケ風</span>
+                            <span class="preset-desc">ボーカルを小さくして伴奏メイン</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Export Modal -->
+        <div id="modal-export" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>書き出し設定</h2>
+                    <button class="modal-close">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="export-option">
+                        <label>フォーマット</label>
+                        <select id="export-format">
+                            <option value="wav">WAV (高品質・無圧縮)</option>
+                            <option value="mp3">MP3 (一般的・軽量)</option>
+                            <option value="ogg">OGG (高品質・軽量)</option>
+                            <option value="flac">FLAC (ロスレス圧縮)</option>
+                        </select>
+                    </div>
+                    <div class="export-option">
+                        <label>サンプルレート</label>
+                        <select id="export-samplerate">
+                            <option value="44100" selected>44100 Hz (CD品質)</option>
+                            <option value="48000">48000 Hz (映像用)</option>
+                            <option value="96000">96000 Hz (ハイレゾ)</option>
+                        </select>
+                    </div>
+                    <div class="export-option">
+                        <label>ビット深度</label>
+                        <select id="export-bitdepth">
+                            <option value="16" selected>16-bit</option>
+                            <option value="24">24-bit</option>
+                            <option value="32">32-bit float</option>
+                        </select>
+                    </div>
+                    <div class="export-option">
+                        <label>ノーマライズ</label>
+                        <input type="checkbox" id="export-normalize" checked>
+                        <span>ピークを -0.3dB に正規化</span>
+                    </div>
+                    <div class="export-option album-art-section">
+                        <label>アルバムアート (任意)</label>
+                        <div class="album-art-upload">
+                            <div id="album-art-preview" class="album-art-preview">
+                                <i class="fas fa-image"></i>
+                                <span>画像を選択</span>
+                            </div>
+                            <input type="file" id="album-art-input" accept="image/*" hidden>
+                            <button id="btn-remove-art" class="hidden">削除</button>
+                        </div>
+                    </div>
+                    <div class="export-option">
+                        <label>メタデータ</label>
+                        <input type="text" id="export-title" placeholder="曲名">
+                        <input type="text" id="export-artist" placeholder="アーティスト名">
+                        <input type="text" id="export-album" placeholder="アルバム名">
+                    </div>
+                    <button id="btn-do-export" class="primary-btn">
+                        <i class="fas fa-download"></i> 書き出し
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Effect Selector Modal -->
+        <div id="modal-effects" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>エフェクト追加</h2>
+                    <button class="modal-close">&times;</button>
+                </div>
+                <div class="modal-body effect-grid">
+                    <button class="effect-card" data-effect="eq"><i class="fas fa-sliders-h"></i><span>イコライザー</span><small>音のバランス調整</small></button>
+                    <button class="effect-card" data-effect="compressor"><i class="fas fa-compress-arrows-alt"></i><span>コンプレッサー</span><small>音量を均一化</small></button>
+                    <button class="effect-card" data-effect="reverb"><i class="fas fa-church"></i><span>リバーブ</span><small>響きを追加</small></button>
+                    <button class="effect-card" data-effect="delay"><i class="fas fa-clock"></i><span>ディレイ</span><small>エコー効果</small></button>
+                    <button class="effect-card" data-effect="chorus"><i class="fas fa-users"></i><span>コーラス</span><small>厚みを追加</small></button>
+                    <button class="effect-card" data-effect="distortion"><i class="fas fa-bolt"></i><span>ディストーション</span><small>音を歪ませる</small></button>
+                    <button class="effect-card" data-effect="filter"><i class="fas fa-filter"></i><span>フィルター</span><small>周波数カット</small></button>
+                    <button class="effect-card" data-effect="gate"><i class="fas fa-door-open"></i><span>ゲート</span><small>小さい音をカット</small></button>
+                    <button class="effect-card" data-effect="phaser"><i class="fas fa-wave-square"></i><span>フェイザー</span><small>うねりエフェクト</small></button>
+                    <button class="effect-card" data-effect="stereo-enhancer"><i class="fas fa-headphones"></i><span>ステレオエンハンサー</span><small>左右の広がり</small></button>
+                    <button class="effect-card" data-effect="pitch-shift"><i class="fas fa-arrow-up"></i><span>ピッチシフト</span><small>音程の上下</small></button>
+                    <button class="effect-card" data-effect="tape-saturation"><i class="fas fa-compact-disc"></i><span>テープサチュレーション</span><small>アナログ感</small></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stem Separator Modal -->
+        <div id="modal-stem" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>音源分離</h2>
+                    <button class="modal-close">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <p>選択したトラックの音源を自動分離します。</p>
+                    <div class="stem-options">
+                        <label><input type="checkbox" checked data-stem="vocals"> ボーカル</label>
+                        <label><input type="checkbox" checked data-stem="drums"> ドラム</label>
+                        <label><input type="checkbox" checked data-stem="bass"> ベース</label>
+                        <label><input type="checkbox" checked data-stem="other"> その他</label>
+                    </div>
+                    <div class="stem-quality">
+                        <label>分離品質:</label>
+                        <select id="stem-quality"><option value="fast">高速</option><option value="normal" selected>標準</option><option value="high">高品質</option></select>
+                    </div>
+                    <button id="btn-do-stem-split" class="primary-btn"><i class="fas fa-project-diagram"></i> 分離開始</button>
+                    <div id="stem-progress" class="hidden">
+                        <div class="progress-bar"><div class="progress-fill"></div></div>
+                        <span class="progress-text">処理中...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Drop Zone -->
+        <div id="drop-zone" class="hidden">
+            <div class="drop-zone-content">
+                <i class="fas fa-cloud-upload-alt fa-3x"></i>
+                <p>ここにドロップ</p>
+            </div>
+        </div>
+
+        <!-- Toast -->
+        <div id="toast-container"></div>
+
+        <!-- Loading -->
+        <div id="loading-overlay" class="hidden">
+            <div class="loading-content">
+                <div class="spinner"></div>
+                <p id="loading-text">処理中...</p>
+                <div class="progress-bar"><div class="progress-fill" id="loading-progress"></div></div>
+            </div>
+        </div>
+    </div>
+
+    <input type="file" id="file-input" accept="audio/*" hidden>
+    <input type="file" id="file-input-multiple" accept="audio/*" multiple hidden>
+
+    <script src="js/storage.js"></script>
+    <script src="js/audio-engine.js"></script>
+    <script src="js/waveform.js"></script>
+    <script src="js/effects.js"></script>
+    <script src="js/stem-separator.js"></script>
+    <script src="js/vocal-processor.js"></script>
+    <script src="js/automation.js"></script>
+    <script src="js/mastering.js"></script>
+    <script src="js/remix.js"></script>
+    <script src="js/midi-converter.js"></script>
+    <script src="js/export-manager.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
