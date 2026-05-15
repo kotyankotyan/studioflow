@@ -9,6 +9,33 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 <body>
+    <!-- ログイン画面 -->
+    <div id="login-screen">
+        <div class="login-box">
+            <div class="login-logo">
+                <i class="fas fa-music"></i>
+                <h1>StudioFlow</h1>
+                <p>プライベート音楽制作ツール</p>
+            </div>
+            <form id="login-form">
+                <div class="login-field">
+                    <label>パスワード</label>
+                    <div class="password-input-wrap">
+                        <input type="password" id="login-password" placeholder="パスワードを入力" autocomplete="current-password">
+                        <button type="button" id="btn-toggle-pw" tabindex="-1">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+                <p id="login-error" class="login-error hidden">パスワードが違います</p>
+                <button type="submit" id="btn-login" class="login-btn">
+                    <i class="fas fa-unlock"></i> ログイン
+                </button>
+            </form>
+            <p class="login-hint">7日間ログイン状態を維持します</p>
+        </div>
+    </div>
+
     <div id="app">
         <!-- Top Bar (Simplified) -->
         <header id="top-bar">
@@ -35,6 +62,7 @@
                 <button id="btn-undo" title="元に戻す"><i class="fas fa-undo"></i></button>
                 <button id="btn-redo" title="やり直し"><i class="fas fa-redo"></i></button>
                 <button id="btn-export" title="書き出し" class="export-btn-top"><i class="fas fa-download"></i> 書き出し</button>
+                <button id="btn-logout" title="ログアウト"><i class="fas fa-sign-out-alt"></i></button>
             </div>
         </header>
 
@@ -517,6 +545,7 @@
     <input type="file" id="file-input" accept="audio/*" hidden>
     <input type="file" id="file-input-multiple" accept="audio/*" multiple hidden>
 
+    <script src="js/auth.js"></script>
     <script src="js/storage.js"></script>
     <script src="js/audio-engine.js"></script>
     <script src="js/waveform.js"></script>

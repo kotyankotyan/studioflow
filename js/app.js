@@ -1718,7 +1718,80 @@ class StudioFlowDAW {
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    window.daw = new StudioFlowDAW();
-    window.daw.init();
+// ============================================
+// 認証ゲート
+// ============================================
+document.addEventListener('DOMContentLoaded', async () => {
+    const auth = new AuthManager();
+    const loginScreen = document.getElementById('login-screen');
+    const app = document.getElementById('app');
+
+    // ログイン済みチェック
+    if (auth.isLoggedIn()) {
+        loginScreen.classList.add('hidden');
+        startApp();
+    } else {
+        // ログイン画面を表示
+        app.style.display = 'none';
+        setupLoginForm();
+    }
+
+    function setupLoginForm() {
+        const form = document.getElementById('login-form');
+        const input = document.getElementById('login-password');
+        const errorEl = document.getElementById('login-error');
+        const btn = document.getElementById('btn-login');
+        const toggleBtn = document.getElementById('btn-toggle-pw');
+
+        // パスワード表示切替
+        toggleBtn.addEventListener('click', () => {
+            const isText = input.type === 'text';
+            input.type = isText ? 'password' : 'text';
+            toggleBtn.querySelector('i').className = 'fas fa-' + (isText ? 'eye' : 'eye-slash');
+        });
+
+        // フォーム送信
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const pw = input.value.trim();
+            if (!pw) return;
+
+            btn.classList.add('loading');
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 確認中...';
+            errorEl.classList.add('hidden');
+            input.classList.remove('error');
+
+            const ok = await auth.login(pw);
+
+            if (ok) {
+                loginScreen.classList.add('hidden');
+                app.style.display = '';
+                startApp();
+            } else {
+                btn.classList.remove('loading');
+                btn.innerHTML = '<i class="fas fa-unlock"></i> ログイン';
+                errorEl.classList.remove('hidden');
+                input.classList.add('error');
+                input.value = '';
+                input.focus();
+            }
+        });
+
+        // Enterキー対応
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') form.dispatchEvent(new Event('submit'));
+        });
+
+        input.focus();
+    }
+
+    function startApp() {
+        window.daw = new StudioFlowDAW();
+        window.daw.init();
+
+        // ログアウトボタン
+        document.getElementById('btn-logout').addEventListener('click', () => {
+            if (confirm('ログアウトしますか？')) auth.logout();
+        });
+    }
 });
