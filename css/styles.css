@@ -1592,3 +1592,372 @@ body {
 
 /* Hidden utility */
 .hidden { display: none !important; }
+
+/* ============================================
+   CREATOR MODAL
+   ============================================ */
+
+/* Creator button in action bar */
+.creator-btn {
+    background: linear-gradient(135deg, #f97316, #e94560) !important;
+    color: #fff !important;
+    font-weight: 600;
+    border: none !important;
+    box-shadow: 0 2px 12px rgba(249,115,22,0.4);
+    transition: box-shadow 0.2s, transform 0.1s;
+}
+.creator-btn:hover {
+    box-shadow: 0 4px 20px rgba(249,115,22,0.6);
+    transform: translateY(-1px);
+}
+
+/* Modal size override for creator */
+.creator-modal {
+    max-width: 680px;
+    width: 95vw;
+    max-height: 90vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+.creator-modal .modal-header {
+    flex-shrink: 0;
+}
+
+/* Tabs */
+.creator-tabs {
+    display: flex;
+    gap: 6px;
+    padding: 12px 20px 0;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-secondary);
+    flex-shrink: 0;
+}
+.creator-tab {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 16px;
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: color 0.2s, border-color 0.2s;
+    white-space: nowrap;
+    position: relative;
+    bottom: -1px;
+}
+.creator-tab:hover {
+    color: var(--text-primary);
+}
+.creator-tab.active {
+    color: var(--text-primary);
+    border-bottom-color: var(--accent);
+}
+.creator-tab-icon {
+    font-size: 16px;
+}
+.creator-tab-badge {
+    font-size: 9px;
+    padding: 2px 5px;
+    border-radius: 20px;
+    background: var(--bg-tertiary);
+    color: var(--text-muted);
+    font-weight: 600;
+    letter-spacing: 0.3px;
+}
+.creator-tab-badge.hot {
+    background: linear-gradient(135deg, #f97316, #e94560);
+    color: #fff;
+}
+
+/* Panels */
+.creator-panel {
+    display: none;
+    padding: 20px;
+    overflow-y: auto;
+    flex: 1;
+    gap: 16px;
+    flex-direction: column;
+}
+.creator-panel.active {
+    display: flex;
+}
+
+/* Intro box */
+.creator-intro {
+    background: rgba(74, 158, 255, 0.08);
+    border: 1px solid rgba(74, 158, 255, 0.2);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+}
+.creator-intro-text {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin: 0;
+}
+.creator-intro-text strong {
+    color: var(--text-primary);
+}
+
+/* Source info */
+.creator-source-info {
+    font-size: 12px;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.creator-source-info i {
+    color: var(--accent-secondary);
+}
+
+/* Settings */
+.creator-settings {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+.creator-setting-row {
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    gap: 12px;
+    align-items: start;
+}
+.creator-setting-row > label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+    padding-top: 4px;
+}
+.creator-setting-control {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.creator-setting-control input[type="range"] {
+    width: 100%;
+    accent-color: var(--accent);
+}
+.setting-value {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent);
+}
+.bpm-value {
+    color: #f97316;
+}
+.setting-hint {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin: 0;
+}
+.radio-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+.radio-label input {
+    accent-color: var(--accent);
+}
+
+/* BPM quick buttons */
+.bpm-detect-row {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+}
+.detect-btn {
+    padding: 6px 12px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: 12px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.detect-btn:hover:not(:disabled) {
+    background: var(--bg-surface-hover);
+}
+.detect-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+.bpm-quick-btns {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 4px;
+}
+.bpm-quick-btn {
+    padding: 4px 10px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.bpm-quick-btn:hover {
+    background: var(--bg-surface-hover);
+    color: var(--text-primary);
+    border-color: var(--accent);
+}
+.bpm-quick-btn.active {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+}
+
+/* Action buttons */
+.creator-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.creator-preview-btn, .creator-process-btn {
+    padding: 10px 20px;
+    border-radius: var(--radius);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s;
+    border: none;
+}
+.creator-preview-btn {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-light);
+}
+.creator-preview-btn:hover:not(:disabled) {
+    background: var(--bg-surface-hover);
+}
+.creator-process-btn {
+    background: linear-gradient(135deg, var(--accent), #c1121f);
+    color: #fff;
+    box-shadow: 0 2px 10px rgba(233,69,96,0.4);
+    flex: 1;
+}
+.creator-process-btn:hover:not(:disabled) {
+    box-shadow: 0 4px 16px rgba(233,69,96,0.6);
+    transform: translateY(-1px);
+}
+.creator-preview-btn:disabled, .creator-process-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Result area */
+.creator-result {
+    background: var(--bg-primary);
+    border: 1px solid var(--accent-green);
+    border-radius: var(--radius);
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.result-waveform canvas {
+    width: 100%;
+    height: 60px;
+    background: var(--waveform-bg);
+    border-radius: var(--radius-sm);
+    display: block;
+}
+.result-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+.result-badge {
+    font-size: 11px;
+    padding: 3px 8px;
+    background: rgba(34,197,94,0.15);
+    color: var(--accent-green);
+    border-radius: 20px;
+    font-weight: 600;
+}
+.creator-export-btn {
+    padding: 10px;
+    background: var(--accent-green);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.2s;
+}
+.creator-export-btn:hover {
+    background: #16a34a;
+}
+
+/* Progress overlay inside modal */
+.creator-progress {
+    position: absolute;
+    inset: 0;
+    background: rgba(22, 33, 62, 0.9);
+    backdrop-filter: blur(4px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    border-radius: var(--radius-lg);
+    z-index: 10;
+}
+.creator-spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+.creator-progress p {
+    color: var(--text-primary);
+    font-size: 14px;
+    font-weight: 500;
+}
+.creator-progress-bar {
+    width: 240px;
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+}
+.creator-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent-secondary));
+    border-radius: 3px;
+    transition: width 0.3s;
+    width: 0%;
+}
+
+/* Make modal position relative so progress overlay works */
+.creator-modal {
+    position: relative;
+}

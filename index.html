@@ -122,6 +122,9 @@
                     </button>
                 </div>
                 <div class="action-bar-right">
+                    <button id="btn-easy-creator" class="action-btn creator-btn">
+                        <i class="fas fa-shopping-bag"></i> 素材を作る
+                    </button>
                     <button id="btn-toggle-advanced" class="action-btn advanced-toggle">
                         <i class="fas fa-cog"></i> 上級者モード
                     </button>
@@ -521,6 +524,205 @@
             </div>
         </div>
 
+        <!-- Creator Modal -->
+        <div id="modal-creator" class="modal hidden">
+            <div class="modal-content creator-modal">
+                <div class="modal-header">
+                    <h2><i class="fas fa-shopping-bag"></i> Booth素材を作る</h2>
+                    <button class="modal-close">&times;</button>
+                </div>
+                <div class="creator-tabs">
+                    <button class="creator-tab active" data-tab="loop">
+                        <span class="creator-tab-icon">🔁</span>
+                        <span class="creator-tab-name">ループ加工</span>
+                        <span class="creator-tab-badge hot">最売れ</span>
+                    </button>
+                    <button class="creator-tab" data-tab="vocal">
+                        <span class="creator-tab-icon">🎤</span>
+                        <span class="creator-tab-name">ボーカル除去</span>
+                        <span class="creator-tab-badge">需要大</span>
+                    </button>
+                    <button class="creator-tab" data-tab="bpm">
+                        <span class="creator-tab-icon">🎵</span>
+                        <span class="creator-tab-name">BPM変換</span>
+                        <span class="creator-tab-badge">1素材→多商品</span>
+                    </button>
+                </div>
+
+                <!-- ① Loop Panel -->
+                <div class="creator-panel active" id="creator-panel-loop">
+                    <div class="creator-intro">
+                        <p class="creator-intro-text">🎮 ゲームBGM・作業用BGM向けに、<strong>曲が途切れずループ</strong>するファイルを作ります。<br>Boothで最も売れるジャンルです。</p>
+                    </div>
+                    <div class="creator-source-info" id="loop-source-info">
+                        <i class="fas fa-info-circle"></i> <span id="loop-source-name">まず曲をアップロードしてください</span>
+                    </div>
+                    <div class="creator-settings">
+                        <div class="creator-setting-row">
+                            <label>ループ終了点</label>
+                            <div class="creator-setting-control">
+                                <label class="radio-label"><input type="radio" name="loop-end-mode" value="auto" checked> 自動検出（おすすめ）</label>
+                                <label class="radio-label"><input type="radio" name="loop-end-mode" value="manual"> 手動で設定</label>
+                                <div id="loop-end-manual" class="hidden" style="margin-top:8px">
+                                    <input type="number" id="loop-end-sec" min="0" step="0.1" value="30" style="width:80px"> 秒
+                                </div>
+                            </div>
+                        </div>
+                        <div class="creator-setting-row">
+                            <label>クロスフェード長</label>
+                            <div class="creator-setting-control">
+                                <input type="range" id="loop-fade-length" min="0.5" max="8" step="0.5" value="3">
+                                <span id="loop-fade-value" class="setting-value">3.0 秒</span>
+                                <p class="setting-hint">長いほど自然になりますが処理が重くなります</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="creator-actions">
+                        <button id="btn-creator-loop-preview" class="creator-preview-btn" disabled>
+                            <i class="fas fa-play"></i> プレビュー
+                        </button>
+                        <button id="btn-creator-loop-process" class="creator-process-btn" disabled>
+                            <i class="fas fa-magic"></i> ループを作成する
+                        </button>
+                    </div>
+                    <div id="creator-loop-result" class="creator-result hidden">
+                        <div class="result-waveform">
+                            <canvas id="loop-result-canvas" height="60"></canvas>
+                        </div>
+                        <div class="result-info">
+                            <span id="loop-result-duration"></span>
+                            <span class="result-badge">✅ シームレスループ</span>
+                        </div>
+                        <button id="btn-creator-loop-export" class="creator-export-btn">
+                            <i class="fas fa-download"></i> WAVで書き出し
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ② Vocal Panel -->
+                <div class="creator-panel" id="creator-panel-vocal">
+                    <div class="creator-intro">
+                        <p class="creator-intro-text">🎙️ ボーカル曲から<strong>インスト版（カラオケ版）</strong>を自動生成します。<br>動画BGM・カラオケ用途で需要大。</p>
+                    </div>
+                    <div class="creator-source-info">
+                        <i class="fas fa-info-circle"></i> <span id="vocal-source-name">まず曲をアップロードしてください</span>
+                    </div>
+                    <div class="creator-settings">
+                        <div class="creator-setting-row">
+                            <label>除去方法</label>
+                            <div class="creator-setting-control">
+                                <label class="radio-label">
+                                    <input type="radio" name="vocal-method" value="stems" checked>
+                                    ステム分離（高品質・遅い）
+                                </label>
+                                <label class="radio-label">
+                                    <input type="radio" name="vocal-method" value="midside">
+                                    Mid/Side処理（高速・簡易）
+                                </label>
+                            </div>
+                        </div>
+                        <div class="creator-setting-row" id="vocal-reduction-row">
+                            <label>除去量</label>
+                            <div class="creator-setting-control">
+                                <input type="range" id="vocal-reduction" min="0.5" max="1.0" step="0.05" value="0.9">
+                                <span id="vocal-reduction-value" class="setting-value">90%</span>
+                                <p class="setting-hint">100%で完全除去。少し残すと自然に聴こえる場合も</p>
+                            </div>
+                        </div>
+                        <div class="creator-setting-row" id="vocal-mix-row" style="display:none">
+                            <label>ボーカル残し量</label>
+                            <div class="creator-setting-control">
+                                <input type="range" id="vocal-mix-amount" min="0" max="0.3" step="0.01" value="0">
+                                <span id="vocal-mix-value" class="setting-value">0%（完全除去）</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="creator-actions">
+                        <button id="btn-creator-vocal-process" class="creator-process-btn" disabled>
+                            <i class="fas fa-magic"></i> インスト版を作成する
+                        </button>
+                    </div>
+                    <div id="creator-vocal-result" class="creator-result hidden">
+                        <div class="result-waveform">
+                            <canvas id="vocal-result-canvas" height="60"></canvas>
+                        </div>
+                        <div class="result-info">
+                            <span id="vocal-result-duration"></span>
+                            <span class="result-badge">✅ ボーカル除去済み</span>
+                        </div>
+                        <button id="btn-creator-vocal-export" class="creator-export-btn">
+                            <i class="fas fa-download"></i> WAVで書き出し
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ③ BPM Panel -->
+                <div class="creator-panel" id="creator-panel-bpm">
+                    <div class="creator-intro">
+                        <p class="creator-intro-text">🎯 <strong>同じ曲を複数のBPMで書き出し</strong>、1素材から複数商品を作れます。<br>80BPM・100BPM・120BPMなど、用途別に出品しましょう。</p>
+                    </div>
+                    <div class="creator-source-info">
+                        <i class="fas fa-info-circle"></i> <span id="bpm-source-name">まず曲をアップロードしてください</span>
+                    </div>
+                    <div class="creator-settings">
+                        <div class="creator-setting-row">
+                            <label>元のBPM</label>
+                            <div class="creator-setting-control bpm-detect-row">
+                                <input type="number" id="bpm-original" min="40" max="300" step="1" value="120" style="width:80px">
+                                <button id="btn-bpm-detect" class="detect-btn" disabled>
+                                    <i class="fas fa-search"></i> 自動検出
+                                </button>
+                            </div>
+                        </div>
+                        <div class="creator-setting-row">
+                            <label>変換後BPM</label>
+                            <div class="creator-setting-control">
+                                <input type="range" id="bpm-target" min="60" max="200" step="1" value="120">
+                                <span id="bpm-target-value" class="setting-value bpm-value">120 BPM</span>
+                                <div class="bpm-quick-btns">
+                                    <button class="bpm-quick-btn" data-bpm="80">80</button>
+                                    <button class="bpm-quick-btn" data-bpm="90">90</button>
+                                    <button class="bpm-quick-btn" data-bpm="100">100</button>
+                                    <button class="bpm-quick-btn" data-bpm="110">110</button>
+                                    <button class="bpm-quick-btn" data-bpm="120">120</button>
+                                    <button class="bpm-quick-btn" data-bpm="128">128</button>
+                                    <button class="bpm-quick-btn" data-bpm="140">140</button>
+                                    <button class="bpm-quick-btn" data-bpm="160">160</button>
+                                </div>
+                                <p class="setting-hint" id="bpm-ratio-hint">変換比率: 1.00x（変換なし）</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="creator-actions">
+                        <button id="btn-creator-bpm-process" class="creator-process-btn" disabled>
+                            <i class="fas fa-magic"></i> BPM変換する
+                        </button>
+                    </div>
+                    <div id="creator-bpm-result" class="creator-result hidden">
+                        <div class="result-waveform">
+                            <canvas id="bpm-result-canvas" height="60"></canvas>
+                        </div>
+                        <div class="result-info">
+                            <span id="bpm-result-duration"></span>
+                            <span class="result-badge" id="bpm-result-badge">✅ BPM変換済み</span>
+                        </div>
+                        <button id="btn-creator-bpm-export" class="creator-export-btn">
+                            <i class="fas fa-download"></i> WAVで書き出し
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Progress overlay -->
+                <div id="creator-progress" class="creator-progress hidden">
+                    <div class="creator-spinner"></div>
+                    <p id="creator-progress-text">処理中...</p>
+                    <div class="creator-progress-bar">
+                        <div class="creator-progress-fill" id="creator-progress-fill"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Drop Zone -->
         <div id="drop-zone" class="hidden">
             <div class="drop-zone-content">
@@ -557,6 +759,7 @@
     <script src="js/remix.js"></script>
     <script src="js/midi-converter.js"></script>
     <script src="js/export-manager.js"></script>
+    <script src="js/creator.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>

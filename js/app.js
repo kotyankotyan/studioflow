@@ -10,6 +10,7 @@ class StudioFlowDAW {
         this.remix = new RemixEngine(this.audioEngine);
         this.midiConverter = new MIDIConverter(this.audioEngine);
         this.exportManager = new ExportManager(this.audioEngine);
+        this.creator = new CreatorEngine(this.audioEngine);
 
         this.tracks = [];
         this.selectedTrack = null;
@@ -43,6 +44,7 @@ class StudioFlowDAW {
 
         this._setupEventListeners();
         this._setupEasyModeListeners();
+        this._setupCreatorListeners();
         this._setupDragDrop();
         this._setupKeyboardShortcuts();
 
@@ -1795,3 +1797,355 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 });
+
+// ============================================
+// CREATOR ENGINE SETUP (appended to prototype)
+// ============================================
+StudioFlowDAW.prototype._setupCreatorListeners = function() {
+    // Open creator modal
+    document.getElementById('btn-easy-creator').addEventListener('click', () => {
+        this._openCreatorModal();
+    });
+
+    // Close modal
+    document.querySelector('#modal-creator .modal-close').addEventListener('click', () => {
+        document.getElementById('modal-creator').classList.add('hidden');
+    });
+    document.getElementById('modal-creator').addEventListener('click', (e) => {
+        if (e.target === e.currentTarget) e.currentTarget.classList.add('hidden');
+    });
+
+    // Tab switching
+    document.querySelectorAll('.creator-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            document.querySelectorAll('.creator-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.creator-panel').forEach(p => p.classList.remove('active'));
+            tab.classList.add('active');
+            document.getElementById('creator-panel-' + tab.dataset.tab).classList.add('active');
+        });
+    });
+
+    // ① Loop settings
+    document.querySelectorAll('[name="loop-end-mode"]').forEach(r => {
+        r.addEventListener('change', () => {
+            const manual = document.getElementById('loop-end-manual');
+            manual.classList.toggle('hidden', r.value !== 'manual');
+        });
+    });
+    document.getElementById('loop-fade-length').addEventListener('input', (e) => {
+        document.getElementById('loop-fade-value').textContent = parseFloat(e.target.value).toFixed(1) + ' 秒';
+    });
+    document.getElementById('btn-creator-loop-process').addEventListener('click', () => this._creatorMakeLoop());
+    document.getElementById('btn-creator-loop-export').addEventListener('click', () => {
+        if (this._creatorLoopBuffer) this._creatorExport(this._creatorLoopBuffer, 'seamless_loop.wav');
+    });
+
+    // ② Vocal
+    document.querySelectorAll('[name="vocal-method"]').forEach(r => {
+        r.addEventListener('change', () => {
+            const isMidSide = r.value === 'midside';
+            document.getElementById('vocal-reduction-row').style.display = isMidSide ? '' : 'none';
+            document.getElementById('vocal-mix-row').style.display = isMidSide ? 'none' : '';
+        });
+    });
+    document.getElementById('vocal-reduction').addEventListener('input', (e) => {
+        document.getElementById('vocal-reduction-value').textContent = Math.round(e.target.value * 100) + '%';
+    });
+    document.getElementById('vocal-mix-amount').addEventListener('input', (e) => {
+        const pct = Math.round(e.target.value * 100);
+        document.getElementById('vocal-mix-value').textContent = pct === 0 ? '0%（完全除去）' : pct + '%';
+    });
+    document.getElementById('btn-creator-vocal-process').addEventListener('click', () => this._creatorMakeVocal());
+    document.getElementById('btn-creator-vocal-export').addEventListener('click', () => {
+        if (this._creatorVocalBuffer) this._creatorExport(this._creatorVocalBuffer, 'instrumental.wav');
+    });
+
+    // ③ BPM
+    document.getElementById('bpm-target').addEventListener('input', (e) => {
+        const t = parseInt(e.target.value);
+        document.getElementById('bpm-target-value').textContent = t + ' BPM';
+        const orig = parseInt(document.getElementById('bpm-original').value) || 120;
+        const ratio = t / orig;
+        document.getElementById('bpm-ratio-hint').textContent = `変換比率: ${ratio.toFixed(2)}x${ratio === 1 ? '（変換なし）' : (ratio > 1 ? '（速くなります）' : '（遅くなります）')}`;
+        document.querySelectorAll('.bpm-quick-btn').forEach(b => b.classList.toggle('active', parseInt(b.dataset.bpm) === t));
+    });
+    document.getElementById('bpm-original').addEventListener('input', (e) => {
+        const orig = parseInt(e.target.value) || 120;
+        const t = parseInt(document.getElementById('bpm-target').value);
+        const ratio = t / orig;
+        document.getElementById('bpm-ratio-hint').textContent = `変換比率: ${ratio.toFixed(2)}x${ratio === 1 ? '（変換なし）' : (ratio > 1 ? '（速くなります）' : '（遅くなります）')}`;
+    });
+    document.querySelectorAll('.bpm-quick-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const bpm = parseInt(btn.dataset.bpm);
+            document.getElementById('bpm-target').value = bpm;
+            document.getElementById('bpm-target-value').textContent = bpm + ' BPM';
+            const orig = parseInt(document.getElementById('bpm-original').value) || 120;
+            const ratio = bpm / orig;
+            document.getElementById('bpm-ratio-hint').textContent = `変換比率: ${ratio.toFixed(2)}x`;
+            document.querySelectorAll('.bpm-quick-btn').forEach(b => b.classList.toggle('active', parseInt(b.dataset.bpm) === bpm));
+        });
+    });
+    document.getElementById('btn-bpm-detect').addEventListener('click', () => this._creatorDetectBpm());
+    document.getElementById('btn-creator-bpm-process').addEventListener('click', () => this._creatorMakeBpm());
+    document.getElementById('btn-creator-bpm-export').addEventListener('click', () => {
+        if (this._creatorBpmBuffer) this._creatorExport(this._creatorBpmBuffer, `bpm${document.getElementById('bpm-target').value}.wav`);
+    });
+};
+
+StudioFlowDAW.prototype._openCreatorModal = function() {
+    const modal = document.getElementById('modal-creator');
+    modal.classList.remove('hidden');
+
+    // Find the primary audio buffer (first non-reference track or merged)
+    const buf = this._getCreatorSourceBuffer();
+    const hasSource = !!buf;
+
+    // Update source info labels
+    const srcName = hasSource
+        ? `音源: ${this.tracks.find(t => t.clips.length > 0)?.name || '読み込み済み'}`
+        : 'まず曲をアップロードしてください';
+
+    document.getElementById('loop-source-name').textContent = srcName;
+    document.getElementById('vocal-source-name').textContent = srcName;
+    document.getElementById('bpm-source-name').textContent = srcName;
+
+    // Enable/disable buttons
+    ['btn-creator-loop-process', 'btn-creator-vocal-process', 'btn-creator-bpm-process', 'btn-bpm-detect'].forEach(id => {
+        document.getElementById(id).disabled = !hasSource;
+    });
+    const loopPreview = document.getElementById('btn-creator-loop-preview');
+    if (loopPreview) loopPreview.disabled = !hasSource;
+};
+
+StudioFlowDAW.prototype._getCreatorSourceBuffer = function() {
+    // Use the first track that has a clip and a buffer
+    // Prefer non-reference tracks; fall back to any track with a buffer
+    const track = this.tracks.find(t =>
+        t.clips.length > 0 && t.clips[0].buffer &&
+        !t.name.includes('参照用')
+    );
+    return track?.clips[0]?.buffer || null;
+};
+
+StudioFlowDAW.prototype._creatorShowProgress = function(pct, text) {
+    const overlay = document.getElementById('creator-progress');
+    overlay.classList.remove('hidden');
+    document.getElementById('creator-progress-text').textContent = text || '処理中...';
+    document.getElementById('creator-progress-fill').style.width = pct + '%';
+};
+
+StudioFlowDAW.prototype._creatorHideProgress = function() {
+    document.getElementById('creator-progress').classList.add('hidden');
+};
+
+StudioFlowDAW.prototype._creatorDrawResult = function(canvasId, buffer) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas || !buffer) return;
+    canvas.width = canvas.offsetWidth || 600;
+    if (window.WaveformRenderer) {
+        new WaveformRenderer().drawClipWaveform(canvas, buffer, 0, buffer.duration);
+    }
+};
+
+StudioFlowDAW.prototype._creatorMakeLoop = async function() {
+    const buffer = this._getCreatorSourceBuffer();
+    if (!buffer) { this._toast('先に曲をアップロードしてください', 'warn'); return; }
+
+    const modeEl = document.querySelector('[name="loop-end-mode"]:checked');
+    const mode = modeEl?.value || 'auto';
+    const loopEnd = mode === 'manual' ? parseFloat(document.getElementById('loop-end-sec').value) : 0;
+    const fadeLength = parseFloat(document.getElementById('loop-fade-length').value);
+
+    document.getElementById('creator-loop-result').classList.add('hidden');
+
+    try {
+        const result = await this.creator.createSeamlessLoop(buffer, {
+            loopEnd,
+            fadeLength,
+            onProgress: (pct, text) => this._creatorShowProgress(pct, text)
+        });
+        this._creatorLoopBuffer = result;
+        this._creatorHideProgress();
+
+        // Show result
+        const dur = result.duration;
+        const mm = String(Math.floor(dur / 60)).padStart(2, '0');
+        const ss = String((dur % 60).toFixed(1)).padStart(4, '0');
+        document.getElementById('loop-result-duration').textContent = `長さ: ${mm}:${ss}`;
+        document.getElementById('creator-loop-result').classList.remove('hidden');
+
+        requestAnimationFrame(() => this._creatorDrawResult('loop-result-canvas', result));
+        this._toast('✅ シームレスループを作成しました！', 'success');
+    } catch (err) {
+        this._creatorHideProgress();
+        this._toast('エラー: ' + err.message, 'error');
+    }
+};
+
+StudioFlowDAW.prototype._creatorMakeVocal = async function() {
+    const method = document.querySelector('[name="vocal-method"]:checked')?.value || 'midside';
+
+    document.getElementById('creator-vocal-result').classList.add('hidden');
+    this._creatorShowProgress(10, 'ボーカル除去中...');
+
+    try {
+        let result;
+        if (method === 'midside') {
+            const buffer = this._getCreatorSourceBuffer();
+            if (!buffer) throw new Error('音源が見つかりません');
+            const reduction = parseFloat(document.getElementById('vocal-reduction').value);
+            this._creatorShowProgress(30, 'Mid/Side処理中...');
+            result = await this.creator.removeVocalMidSide(buffer, reduction);
+        } else {
+            // Use existing stems if available
+            const stems = this._getStemsFromTracks();
+            if (!stems) throw new Error('ステムが分離されていません。先にステム分離を行ってください。');
+            this._creatorShowProgress(50, 'ステムミックス中...');
+            const vocalMix = parseFloat(document.getElementById('vocal-mix-amount').value);
+            result = await this.creator.createInstrumental(stems, { vocalMix });
+        }
+
+        this._creatorVocalBuffer = result;
+        this._creatorHideProgress();
+
+        const dur = result.duration;
+        const mm = String(Math.floor(dur / 60)).padStart(2, '0');
+        const ss = String((dur % 60).toFixed(1)).padStart(4, '0');
+        document.getElementById('vocal-result-duration').textContent = `長さ: ${mm}:${ss}`;
+        document.getElementById('creator-vocal-result').classList.remove('hidden');
+
+        requestAnimationFrame(() => this._creatorDrawResult('vocal-result-canvas', result));
+        this._toast('✅ インスト版を作成しました！', 'success');
+    } catch (err) {
+        this._creatorHideProgress();
+        this._toast('エラー: ' + err.message, 'error');
+    }
+};
+
+StudioFlowDAW.prototype._getStemsFromTracks = function() {
+    const stemMap = { 'ボーカル': 'vocals', 'ドラム': 'drums', 'ベース': 'bass', 'その他': 'other' };
+    const stems = {};
+    this.tracks.forEach(t => {
+        if (!t.clips[0]?.buffer) return;
+        for (const [key, val] of Object.entries(stemMap)) {
+            if (t.name.includes(key)) { stems[val] = t.clips[0].buffer; break; }
+        }
+    });
+    return Object.keys(stems).length >= 2 ? stems : null;
+};
+
+StudioFlowDAW.prototype._creatorDetectBpm = function() {
+    const buffer = this._getCreatorSourceBuffer();
+    if (!buffer) { this._toast('先に曲をアップロードしてください', 'warn'); return; }
+
+    const bpm = this.creator.detectBpm(buffer);
+    document.getElementById('bpm-original').value = bpm;
+    document.getElementById('bpm-target').value = bpm;
+    document.getElementById('bpm-target-value').textContent = bpm + ' BPM';
+    document.getElementById('bpm-ratio-hint').textContent = '変換比率: 1.00x（変換なし）';
+    this._toast(`BPM自動検出: ${bpm}`, 'success');
+};
+
+StudioFlowDAW.prototype._creatorMakeBpm = async function() {
+    const buffer = this._getCreatorSourceBuffer();
+    if (!buffer) { this._toast('先に曲をアップロードしてください', 'warn'); return; }
+
+    const origBpm = parseInt(document.getElementById('bpm-original').value) || 120;
+    const targetBpm = parseInt(document.getElementById('bpm-target').value) || 120;
+
+    if (origBpm === targetBpm) {
+        this._toast('元BPMと変換後BPMが同じです', 'warn');
+        return;
+    }
+
+    document.getElementById('creator-bpm-result').classList.add('hidden');
+
+    try {
+        const result = await this.creator.changeBpm(buffer, origBpm, targetBpm,
+            (pct, text) => this._creatorShowProgress(pct, text)
+        );
+        this._creatorBpmBuffer = result;
+        this._creatorHideProgress();
+
+        const dur = result.duration;
+        const mm = String(Math.floor(dur / 60)).padStart(2, '0');
+        const ss = String((dur % 60).toFixed(1)).padStart(4, '0');
+        document.getElementById('bpm-result-duration').textContent = `長さ: ${mm}:${ss}`;
+        document.getElementById('bpm-result-badge').textContent = `✅ ${origBpm}→${targetBpm} BPM変換済み`;
+        document.getElementById('creator-bpm-result').classList.remove('hidden');
+
+        requestAnimationFrame(() => this._creatorDrawResult('bpm-result-canvas', result));
+        this._toast(`✅ BPM ${origBpm}→${targetBpm} 変換完了！`, 'success');
+    } catch (err) {
+        this._creatorHideProgress();
+        this._toast('エラー: ' + err.message, 'error');
+    }
+};
+
+StudioFlowDAW.prototype._creatorExport = async function(buffer, filename) {
+    try {
+        this._creatorShowProgress(10, 'WAV書き出し中...');
+        // Use export manager if available, otherwise manual WAV encode
+        const wavBlob = await this._bufferToWavBlob(buffer);
+        this._creatorShowProgress(90, '保存中...');
+        const url = URL.createObjectURL(wavBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+        this._creatorHideProgress();
+        this._toast('✅ 書き出し完了: ' + filename, 'success');
+    } catch (err) {
+        this._creatorHideProgress();
+        this._toast('書き出しエラー: ' + err.message, 'error');
+    }
+};
+
+StudioFlowDAW.prototype._bufferToWavBlob = function(buffer) {
+    const numChannels = buffer.numberOfChannels;
+    const sampleRate = buffer.sampleRate;
+    const numSamples = buffer.length;
+    const bitsPerSample = 16;
+    const bytesPerSample = bitsPerSample / 8;
+    const blockAlign = numChannels * bytesPerSample;
+    const byteRate = sampleRate * blockAlign;
+    const dataSize = numSamples * blockAlign;
+    const bufferSize = 44 + dataSize;
+
+    const arrayBuf = new ArrayBuffer(bufferSize);
+    const view = new DataView(arrayBuf);
+
+    const writeString = (offset, str) => {
+        for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+    };
+
+    writeString(0, 'RIFF');
+    view.setUint32(4, bufferSize - 8, true);
+    writeString(8, 'WAVE');
+    writeString(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, numChannels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, byteRate, true);
+    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, bitsPerSample, true);
+    writeString(36, 'data');
+    view.setUint32(40, dataSize, true);
+
+    const channels = [];
+    for (let ch = 0; ch < numChannels; ch++) channels.push(buffer.getChannelData(ch));
+
+    let offset = 44;
+    for (let i = 0; i < numSamples; i++) {
+        for (let ch = 0; ch < numChannels; ch++) {
+            const sample = Math.max(-1, Math.min(1, channels[ch][i]));
+            view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+            offset += 2;
+        }
+    }
+
+    return Promise.resolve(new Blob([arrayBuf], { type: 'audio/wav' }));
+};
