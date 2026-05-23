@@ -1795,6 +1795,95 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('btn-logout').addEventListener('click', () => {
             if (confirm('ログアウトしますか？')) auth.logout();
         });
+
+        // ===== 設定モーダル =====
+        const settingsModal = document.getElementById('modal-settings');
+
+        document.getElementById('btn-settings').addEventListener('click', () => {
+            settingsModal.classList.remove('hidden');
+            // フォームをリセット
+            ['settings-pw-current','settings-pw-new','settings-pw-confirm'].forEach(id => {
+                document.getElementById(id).value = '';
+            });
+            document.getElementById('settings-pw-error').classList.add('hidden');
+            document.getElementById('settings-pw-success').classList.add('hidden');
+        });
+
+        settingsModal.querySelector('.modal-close').addEventListener('click', () => {
+            settingsModal.classList.add('hidden');
+        });
+        settingsModal.addEventListener('click', (e) => {
+            if (e.target === settingsModal) settingsModal.classList.add('hidden');
+        });
+
+        // パスワード表示切り替え
+        settingsModal.querySelectorAll('.pw-toggle-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const input = document.getElementById(btn.dataset.target);
+                if (!input) return;
+                input.type = input.type === 'password' ? 'text' : 'password';
+                btn.querySelector('i').className = input.type === 'password' ? 'fas fa-eye' : 'fas fa-eye-slash';
+            });
+        });
+
+        // パスワード変更
+        document.getElementById('btn-change-password').addEventListener('click', async () => {
+            const currentPw = document.getElementById('settings-pw-current').value;
+            const newPw     = document.getElementById('settings-pw-new').value;
+            const confirmPw = document.getElementById('settings-pw-confirm').value;
+            const errEl     = document.getElementById('settings-pw-error');
+            const sucEl     = document.getElementById('settings-pw-success');
+            const btn       = document.getElementById('btn-change-password');
+
+            errEl.classList.add('hidden');
+            sucEl.classList.add('hidden');
+
+            // バリデーション
+            if (!currentPw || !newPw || !confirmPw) {
+                errEl.textContent = 'すべての項目を入力してください';
+                errEl.classList.remove('hidden'); return;
+            }
+            if (newPw.length < 6) {
+                errEl.textContent = '新しいパスワードは6文字以上にしてください';
+                errEl.classList.remove('hidden'); return;
+            }
+            if (newPw !== confirmPw) {
+                errEl.textContent = '新しいパスワードが一致しません';
+                errEl.classList.remove('hidden'); return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 確認中...';
+
+            // 現在のパスワードを確認
+            const currentOk = await auth.login(currentPw);
+            if (!currentOk) {
+                errEl.textContent = '現在のパスワードが正しくありません';
+                errEl.classList.remove('hidden');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-key"></i> パスワードを変更する';
+                return;
+            }
+
+            // 新しいパスワードをlocalStorageに永続保存
+            await auth.changePassword(newPw);
+
+            sucEl.textContent = `✅ パスワードを「${newPw}」に変更しました。次回ログインから新しいパスワードが使えます。`;
+            sucEl.classList.remove('hidden');
+
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-key"></i> パスワードを変更する';
+
+            // 入力欄をクリア
+            ['settings-pw-current','settings-pw-new','settings-pw-confirm'].forEach(id => {
+                document.getElementById(id).value = '';
+            });
+        });
+
+        // 設定モーダルからのログアウト
+        document.getElementById('btn-settings-logout').addEventListener('click', () => {
+            if (confirm('ログアウトしますか？')) auth.logout();
+        });
     }
 });
 

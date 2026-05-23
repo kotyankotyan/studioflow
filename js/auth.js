@@ -5,11 +5,13 @@
  */
 class AuthManager {
     constructor() {
-        // パスワードのSHA-256ハッシュ（変更する場合は下のメソッドで生成）
-        // デフォルト: studio2024
-        this.PASSWORD_HASH = '12df4b6d72b29caa72e9a6cc8bfb8d1c6c23f03b73a0d37c4f382180aed8e87c';
+        // パスワードのSHA-256ハッシュ（デフォルト: studio2024）
+        this.DEFAULT_HASH = '12df4b6d72b29caa72e9a6cc8bfb8d1c6c23f03b73a0d37c4f382180aed8e87c';
+        this.PW_HASH_KEY = 'studioflow_pw_hash';
         this.SESSION_KEY = 'studioflow_auth';
-        this.SESSION_DAYS = 7; // 7日間ログイン維持
+        this.SESSION_DAYS = 7;
+        // localStorageに保存された変更済みハッシュがあれば使う
+        this.PASSWORD_HASH = localStorage.getItem(this.PW_HASH_KEY) || this.DEFAULT_HASH;
     }
 
     /** パスワードをSHA-256でハッシュ化 */
@@ -52,6 +54,23 @@ class AuthManager {
     /** パスワード変更用ハッシュ生成 */
     async generateHash(newPassword) {
         return await this.hashPassword(newPassword);
+    }
+
+    /**
+     * パスワードを永続的に変更する
+     * 新しいハッシュをlocalStorageに保存し、以後そちらを使う
+     */
+    async changePassword(newPassword) {
+        const newHash = await this.hashPassword(newPassword);
+        this.PASSWORD_HASH = newHash;
+        localStorage.setItem(this.PW_HASH_KEY, newHash);
+        return newHash;
+    }
+
+    /** パスワードをデフォルトにリセット（デバッグ用） */
+    resetToDefault() {
+        this.PASSWORD_HASH = this.DEFAULT_HASH;
+        localStorage.removeItem(this.PW_HASH_KEY);
     }
 }
 

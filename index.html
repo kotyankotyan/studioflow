@@ -62,6 +62,7 @@
                 <button id="btn-undo" title="元に戻す"><i class="fas fa-undo"></i></button>
                 <button id="btn-redo" title="やり直し"><i class="fas fa-redo"></i></button>
                 <button id="btn-export" title="書き出し" class="export-btn-top"><i class="fas fa-download"></i> 書き出し</button>
+                <button id="btn-settings" title="設定・パスワード変更"><i class="fas fa-cog"></i></button>
                 <button id="btn-logout" title="ログアウト"><i class="fas fa-sign-out-alt"></i></button>
             </div>
         </header>
@@ -107,29 +108,31 @@
 
             <!-- Bottom Action Bar (visible after import) -->
             <div id="easy-action-bar" class="hidden">
-                <div class="action-bar-left">
-                    <button id="btn-easy-reimport" class="action-btn">
-                        <i class="fas fa-cloud-upload-alt"></i> 別の曲
+                <!-- Row 1: main actions -->
+                <div class="action-bar-row action-bar-row-main">
+                    <button id="btn-easy-reimport" class="abar-btn abar-secondary">
+                        <i class="fas fa-cloud-upload-alt"></i><span>別の曲</span>
                     </button>
-                    <button id="btn-easy-preset" class="action-btn preset-btn">
-                        <i class="fas fa-magic"></i> かんたんプリセット
+                    <button id="btn-easy-preset" class="abar-btn abar-preset">
+                        <i class="fas fa-magic"></i><span>プリセット</span>
                     </button>
+                    <button id="btn-easy-compare" class="abar-btn abar-compare">
+                        <i class="fas fa-exchange-alt"></i><span>原曲と比較</span>
+                    </button>
+                    <div class="abar-spacer"></div>
+                    <button id="btn-easy-creator" class="abar-btn abar-creator">
+                        <i class="fas fa-shopping-bag"></i><span>素材を作る</span>
+                    </button>
+                    <button id="btn-easy-export" class="abar-btn abar-export">
+                        <i class="fas fa-download"></i><span>書き出し</span>
+                    </button>
+                </div>
+                <!-- Row 2: info + advanced -->
+                <div class="action-bar-row action-bar-row-sub">
                     <span id="storage-indicator" class="storage-indicator" title="ブラウザに自動保存中">💾 保存済み</span>
-                </div>
-                <div class="action-bar-center">
-                    <button id="btn-easy-compare" class="compare-btn">
-                        <i class="fas fa-exchange-alt"></i> 調整前と比較
-                    </button>
-                </div>
-                <div class="action-bar-right">
-                    <button id="btn-easy-creator" class="action-btn creator-btn">
-                        <i class="fas fa-shopping-bag"></i> 素材を作る
-                    </button>
-                    <button id="btn-toggle-advanced" class="action-btn advanced-toggle">
-                        <i class="fas fa-cog"></i> 上級者モード
-                    </button>
-                    <button id="btn-easy-export" class="action-btn export-action-btn">
-                        <i class="fas fa-download"></i> 書き出し
+                    <div class="abar-spacer"></div>
+                    <button id="btn-toggle-advanced" class="abar-btn abar-advanced">
+                        <i class="fas fa-sliders-h"></i><span>上級者モード</span>
                     </button>
                 </div>
             </div>
@@ -718,6 +721,62 @@
                     <p id="creator-progress-text">処理中...</p>
                     <div class="creator-progress-bar">
                         <div class="creator-progress-fill" id="creator-progress-fill"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Modal -->
+        <div id="modal-settings" class="modal hidden">
+            <div class="modal-content settings-modal">
+                <div class="modal-header">
+                    <h2><i class="fas fa-cog"></i> 設定</h2>
+                    <button class="modal-close">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <!-- パスワード変更 -->
+                    <div class="settings-section">
+                        <h3 class="settings-section-title"><i class="fas fa-lock"></i> パスワード変更</h3>
+                        <p class="settings-desc">新しいパスワードを設定します。変更後は新しいパスワードでログインしてください。</p>
+                        <div class="settings-form">
+                            <div class="settings-field">
+                                <label>現在のパスワード</label>
+                                <div class="pw-input-wrap">
+                                    <input type="password" id="settings-pw-current" placeholder="現在のパスワードを入力" autocomplete="current-password">
+                                    <button type="button" class="pw-toggle-btn" data-target="settings-pw-current"><i class="fas fa-eye"></i></button>
+                                </div>
+                            </div>
+                            <div class="settings-field">
+                                <label>新しいパスワード</label>
+                                <div class="pw-input-wrap">
+                                    <input type="password" id="settings-pw-new" placeholder="新しいパスワードを入力（6文字以上）" autocomplete="new-password">
+                                    <button type="button" class="pw-toggle-btn" data-target="settings-pw-new"><i class="fas fa-eye"></i></button>
+                                </div>
+                            </div>
+                            <div class="settings-field">
+                                <label>新しいパスワード（確認）</label>
+                                <div class="pw-input-wrap">
+                                    <input type="password" id="settings-pw-confirm" placeholder="もう一度入力" autocomplete="new-password">
+                                    <button type="button" class="pw-toggle-btn" data-target="settings-pw-confirm"><i class="fas fa-eye"></i></button>
+                                </div>
+                            </div>
+                            <p id="settings-pw-error" class="settings-error hidden"></p>
+                            <p id="settings-pw-success" class="settings-success hidden"></p>
+                            <button id="btn-change-password" class="settings-save-btn">
+                                <i class="fas fa-key"></i> パスワードを変更する
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="settings-divider"></div>
+
+                    <!-- ログアウト -->
+                    <div class="settings-section">
+                        <h3 class="settings-section-title"><i class="fas fa-sign-out-alt"></i> ログアウト</h3>
+                        <p class="settings-desc">このデバイスからログアウトします。次回アクセス時にパスワードが必要です。</p>
+                        <button id="btn-settings-logout" class="settings-logout-btn">
+                            <i class="fas fa-sign-out-alt"></i> ログアウト
+                        </button>
                     </div>
                 </div>
             </div>
