@@ -268,6 +268,60 @@ class StudioFlowDAW {
                     </p>
                     `}
                 </div>
+
+                <!-- ✂️ 編集パネル（切り抜き・フェード） -->
+                <div class="part-edit-section">
+                    <button class="part-edit-toggle" data-track-id="${track.id}">
+                        <i class="fas fa-cut"></i> 編集する
+                        <i class="fas fa-chevron-down part-edit-chevron"></i>
+                    </button>
+                    <div class="part-edit-panel hidden" data-edit-panel="${track.id}">
+                        <div class="edit-waveform-wrap">
+                            <canvas class="edit-waveform-canvas" data-edit-canvas="${track.id}" height="44"></canvas>
+                            <div class="edit-range-overlay">
+                                <div class="edit-range-bar" data-range-bar="${track.id}"></div>
+                            </div>
+                        </div>
+                        <div class="edit-controls-grid">
+                            <div class="edit-ctrl-row">
+                                <span class="edit-ctrl-label"><i class="fas fa-step-forward fa-flip-horizontal"></i> 開始</span>
+                                <input type="range" class="edit-slider" data-track-id="${track.id}" data-edit="start"
+                                    min="0" max="${(track.clips[0]?.buffer?.duration || 30).toFixed(1)}"
+                                    step="0.1" value="${track._editStart || 0}">
+                                <span class="edit-ctrl-value" data-edit-val="${track.id}-start">${this._fmtSec(track._editStart || 0)}</span>
+                            </div>
+                            <div class="edit-ctrl-row">
+                                <span class="edit-ctrl-label"><i class="fas fa-step-forward"></i> 終了</span>
+                                <input type="range" class="edit-slider" data-track-id="${track.id}" data-edit="end"
+                                    min="0" max="${(track.clips[0]?.buffer?.duration || 30).toFixed(1)}"
+                                    step="0.1" value="${track._editEnd || (track.clips[0]?.buffer?.duration || 30).toFixed(1)}">
+                                <span class="edit-ctrl-value" data-edit-val="${track.id}-end">${this._fmtSec(track._editEnd || track.clips[0]?.buffer?.duration || 30)}</span>
+                            </div>
+                            <div class="edit-ctrl-row">
+                                <span class="edit-ctrl-label"><i class="fas fa-level-up-alt"></i> フェードイン</span>
+                                <input type="range" class="edit-slider" data-track-id="${track.id}" data-edit="fadeIn"
+                                    min="0" max="10" step="0.1" value="${track._editFadeIn || 0}">
+                                <span class="edit-ctrl-value" data-edit-val="${track.id}-fadeIn">${track._editFadeIn ? track._editFadeIn + '秒' : 'なし'}</span>
+                            </div>
+                            <div class="edit-ctrl-row">
+                                <span class="edit-ctrl-label"><i class="fas fa-level-down-alt"></i> フェードアウト</span>
+                                <input type="range" class="edit-slider" data-track-id="${track.id}" data-edit="fadeOut"
+                                    min="0" max="10" step="0.1" value="${track._editFadeOut || 0}">
+                                <span class="edit-ctrl-value" data-edit-val="${track.id}-fadeOut">${track._editFadeOut ? track._editFadeOut + '秒' : 'なし'}</span>
+                            </div>
+                        </div>
+                        <div class="edit-apply-row">
+                            <button class="edit-apply-btn" data-track-id="${track.id}">
+                                <i class="fas fa-check"></i> 適用する
+                            </button>
+                            ${track._originalBuffer ? `
+                            <button class="edit-reset-btn" data-track-id="${track.id}">
+                                <i class="fas fa-undo"></i> 元に戻す
+                            </button>` : ''}
+                            <span class="edit-status" data-edit-status="${track.id}"></span>
+                        </div>
+                    </div>
+                </div>
             `;
 
             grid.appendChild(card);
@@ -348,6 +402,218 @@ class StudioFlowDAW {
                 this._updateEasyCardsState();
             });
         });
+
+        // 編集パネルのイベント
+        this._setupEditPanelEvents(grid);
+    }
+
+    /** 秒を "0:00.0" 表示に変換 */
+    _fmtSec(sec) {
+        const s = parseFloat(sec);
+        const m = Math.floor(s / 60);
+        const r = (s % 60).toFixed(1).padStart(4, '0');
+        return `${m}:${r}`;
+    }
+
+    _setupEditPanelEvents(grid) {
+        // トグルボタン
+        grid.querySelectorAll('.part-edit-toggle').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tid = btn.dataset.trackId;
+                const panel = grid.querySelector(`[data-edit-panel="${tid}"]`);
+                const chevron = btn.querySelector('.part-edit-chevron');
+                const isOpen = !panel.classList.contains('hidden');
+                panel.classList.toggle('hidden', isOpen);
+                chevron.style.transform = isOpen ? '' : 'rotate(180deg)';
+
+                // パネルを開いたとき波形を描画
+                if (!isOpen) {
+                    const track = this.tracks.find(t => t.id === tid);
+                    const canvas = grid.querySelector(`[data-edit-canvas="${tid}"]`);
+                    if (canvas && track?.clips[0]?.buffer) {
+                        canvas.width = canvas.offsetWidth || 400;
+                        this.waveform.drawClipWaveform(canvas, track.clips[0].buffer, 0, track.clips[0].duration);
+                        this._updateEditRangeBar(tid, track, grid);
+                    }
+                }
+            });
+        });
+
+        // 編集スライダー
+        grid.querySelectorAll('.edit-slider').forEach(slider => {
+            slider.addEventListener('input', (e) => {
+                const tid  = e.target.dataset.trackId;
+                const key  = e.target.dataset.edit; // start|end|fadeIn|fadeOut
+                const val  = parseFloat(e.target.value);
+                const track = this.tracks.find(t => t.id === tid);
+                if (!track) return;
+
+                // 開始 < 終了 を維持
+                if (key === 'start') {
+                    const endSlider = grid.querySelector(`[data-edit="end"][data-track-id="${tid}"]`);
+                    const endVal = parseFloat(endSlider?.value || track.clips[0]?.buffer?.duration || 30);
+                    if (val >= endVal - 0.2) {
+                        e.target.value = Math.max(0, endVal - 0.2);
+                    }
+                    track._editStart = parseFloat(e.target.value);
+                } else if (key === 'end') {
+                    const startSlider = grid.querySelector(`[data-edit="start"][data-track-id="${tid}"]`);
+                    const startVal = parseFloat(startSlider?.value || 0);
+                    if (val <= startVal + 0.2) {
+                        e.target.value = startVal + 0.2;
+                    }
+                    track._editEnd = parseFloat(e.target.value);
+                } else if (key === 'fadeIn') {
+                    track._editFadeIn = val;
+                } else if (key === 'fadeOut') {
+                    track._editFadeOut = val;
+                }
+
+                // 値ラベル更新
+                const lbl = grid.querySelector(`[data-edit-val="${tid}-${key}"]`);
+                if (lbl) {
+                    if (key === 'start' || key === 'end') {
+                        lbl.textContent = this._fmtSec(e.target.value);
+                    } else {
+                        lbl.textContent = val === 0 ? 'なし' : `${val.toFixed(1)}秒`;
+                    }
+                }
+
+                // レンジバー更新
+                this._updateEditRangeBar(tid, track, grid);
+            });
+        });
+
+        // 適用ボタン
+        grid.querySelectorAll('.edit-apply-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const tid   = btn.dataset.trackId;
+                const track = this.tracks.find(t => t.id === tid);
+                if (!track?.clips[0]?.buffer) return;
+
+                const statusEl = grid.querySelector(`[data-edit-status="${tid}"]`);
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 処理中...';
+
+                try {
+                    // 初回適用時に元バッファを保存
+                    if (!track._originalBuffer) {
+                        track._originalBuffer = track.clips[0].buffer;
+                    }
+
+                    const dur = track._originalBuffer.duration;
+                    const endVal = track._editEnd || dur;
+
+                    const edited = this.creator.applyEdits(track._originalBuffer, {
+                        startSec : track._editStart || 0,
+                        endSec   : endVal,
+                        fadeIn   : track._editFadeIn  || 0,
+                        fadeOut  : track._editFadeOut || 0,
+                    });
+
+                    track.clips[0].buffer   = edited;
+                    track.clips[0].duration = edited.duration;
+
+                    // 波形を再描画
+                    const miniCanvas = document.querySelector(`.part-waveform canvas[data-track-id="${tid}"]`);
+                    if (miniCanvas) this.waveform.drawClipWaveform(miniCanvas, edited, 0, edited.duration);
+
+                    const editCanvas = grid.querySelector(`[data-edit-canvas="${tid}"]`);
+                    if (editCanvas) this.waveform.drawClipWaveform(editCanvas, edited, 0, edited.duration);
+
+                    // 「元に戻す」ボタンを追加
+                    const applyRow = btn.closest('.edit-apply-row');
+                    if (!applyRow.querySelector('.edit-reset-btn')) {
+                        const resetBtn = document.createElement('button');
+                        resetBtn.className = 'edit-reset-btn';
+                        resetBtn.dataset.trackId = tid;
+                        resetBtn.innerHTML = '<i class="fas fa-undo"></i> 元に戻す';
+                        resetBtn.addEventListener('click', () => this._resetEdit(tid, grid));
+                        applyRow.insertBefore(resetBtn, statusEl);
+                    }
+
+                    if (statusEl) {
+                        statusEl.textContent = '✅ 適用しました';
+                        statusEl.style.color = 'var(--accent-green)';
+                        setTimeout(() => { if(statusEl) statusEl.textContent = ''; }, 3000);
+                    }
+                } catch (err) {
+                    if (statusEl) {
+                        statusEl.textContent = '⚠️ ' + err.message;
+                        statusEl.style.color = 'var(--accent)';
+                    }
+                } finally {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-check"></i> 適用する';
+                }
+            });
+        });
+
+        // リセットボタン（元バッファがある場合のみ）
+        grid.querySelectorAll('.edit-reset-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this._resetEdit(btn.dataset.trackId, grid);
+            });
+        });
+    }
+
+    _resetEdit(tid, grid) {
+        const track = this.tracks.find(t => t.id === tid);
+        if (!track?._originalBuffer) return;
+
+        track.clips[0].buffer   = track._originalBuffer;
+        track.clips[0].duration = track._originalBuffer.duration;
+        track._originalBuffer   = null;
+        track._editStart = 0;
+        track._editEnd   = track.clips[0].duration;
+        track._editFadeIn  = 0;
+        track._editFadeOut = 0;
+
+        // 波形再描画
+        const miniCanvas = document.querySelector(`.part-waveform canvas[data-track-id="${tid}"]`);
+        if (miniCanvas) this.waveform.drawClipWaveform(miniCanvas, track.clips[0].buffer, 0, track.clips[0].duration);
+        const editCanvas = grid.querySelector(`[data-edit-canvas="${tid}"]`);
+        if (editCanvas) this.waveform.drawClipWaveform(editCanvas, track.clips[0].buffer, 0, track.clips[0].duration);
+
+        // スライダーをリセット
+        const dur = track.clips[0].duration;
+        const startSlider = grid.querySelector(`[data-edit="start"][data-track-id="${tid}"]`);
+        const endSlider   = grid.querySelector(`[data-edit="end"][data-track-id="${tid}"]`);
+        const fiSlider    = grid.querySelector(`[data-edit="fadeIn"][data-track-id="${tid}"]`);
+        const foSlider    = grid.querySelector(`[data-edit="fadeOut"][data-track-id="${tid}"]`);
+        if (startSlider) { startSlider.max = dur.toFixed(1); startSlider.value = 0; }
+        if (endSlider)   { endSlider.max   = dur.toFixed(1); endSlider.value   = dur.toFixed(1); }
+        if (fiSlider)    fiSlider.value = 0;
+        if (foSlider)    foSlider.value = 0;
+
+        // ラベル更新
+        const lblStart  = grid.querySelector(`[data-edit-val="${tid}-start"]`);
+        const lblEnd    = grid.querySelector(`[data-edit-val="${tid}-end"]`);
+        const lblFadeIn = grid.querySelector(`[data-edit-val="${tid}-fadeIn"]`);
+        const lblFadeOut= grid.querySelector(`[data-edit-val="${tid}-fadeOut"]`);
+        if (lblStart)   lblStart.textContent  = '0:00.0';
+        if (lblEnd)     lblEnd.textContent    = this._fmtSec(dur);
+        if (lblFadeIn)  lblFadeIn.textContent  = 'なし';
+        if (lblFadeOut) lblFadeOut.textContent = 'なし';
+
+        // リセットボタン自体を消す
+        const resetBtn = grid.querySelector(`.edit-reset-btn[data-track-id="${tid}"]`);
+        resetBtn?.remove();
+
+        const statusEl = grid.querySelector(`[data-edit-status="${tid}"]`);
+        if (statusEl) { statusEl.textContent = '↩️ 元に戻しました'; statusEl.style.color = 'var(--text-secondary)'; setTimeout(() => { statusEl.textContent = ''; }, 2500); }
+
+        this._updateEditRangeBar(tid, track, grid);
+    }
+
+    _updateEditRangeBar(tid, track, grid) {
+        const bar = grid.querySelector(`[data-range-bar="${tid}"]`);
+        if (!bar || !track.clips[0]?.buffer) return;
+        const dur   = track._originalBuffer?.duration || track.clips[0].buffer.duration;
+        const start = (track._editStart || 0) / dur;
+        const end   = (track._editEnd   || dur) / dur;
+        bar.style.left  = (start * 100).toFixed(1) + '%';
+        bar.style.width = ((end - start) * 100).toFixed(1) + '%';
     }
 
     _updateEasyCardsState() {

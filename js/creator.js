@@ -357,6 +357,107 @@ class CreatorEngine {
     }
 
     // ============================================
+    // ④ 音声編集（切り抜き・フェード）
+    // ============================================
+
+    /**
+     * 音声バッファを指定範囲で切り抜く
+     * @param {AudioBuffer} buffer
+     * @param {number} startSec  - 開始秒
+     * @param {number} endSec    - 終了秒（0 = 末尾まで）
+     * @returns {AudioBuffer}
+     */
+    trimBuffer(buffer, startSec, endSec = 0) {
+        const sr = buffer.sampleRate;
+        const totalSamples = buffer.length;
+        const startSample = Math.max(0, Math.floor(startSec * sr));
+        const endSample   = endSec > 0
+            ? Math.min(totalSamples, Math.floor(endSec * sr))
+            : totalSamples;
+
+        if (startSample >= endSample) {
+            throw new Error('切り抜き範囲が無効です。開始点 < 終了点になるよう設定してください。');
+        }
+
+        const length = endSample - startSample;
+        const out = this.engine.ctx.createBuffer(buffer.numberOfChannels, length, sr);
+
+        for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
+            const src = buffer.getChannelData(ch);
+            const dst = out.getChannelData(ch);
+            dst.set(src.subarray(startSample, endSample));
+        }
+        return out;
+    }
+
+    /**
+     * フェードイン・フェードアウトを適用する（コピーを変更）
+     * @param {AudioBuffer} buffer
+     * @param {number} fadeInSec   - フェードイン秒数 (0 = なし)
+     * @param {number} fadeOutSec  - フェードアウト秒数 (0 = なし)
+     * @returns {AudioBuffer} 同じバッファを返す（変更済み）
+     */
+    applyFades(buffer, fadeInSec = 0, fadeOutSec = 0) {
+        const sr   = buffer.sampleRate;
+        const len  = buffer.length;
+        const fadeInSamples  = Math.floor(fadeInSec  * sr);
+        const fadeOutSamples = Math.floor(fadeOutSec * sr);
+
+        for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
+            const data = buffer.getChannelData(ch);
+
+            // フェードイン: 先頭 fadeInSamples をコサインカーブで 0→1
+            for (let i = 0; i < Math.min(fadeInSamples, len); i++) {
+                const t = i / fadeInSamples;
+                data[i] *= 0.5 - 0.5 * Math.cos(t * Math.PI); // 0 → 1
+            }
+
+            // フェードアウト: 末尾 fadeOutSamples をコサインカーブで 1→0
+            for (let i = 0; i < Math.min(fadeOutSamples, len); i++) {
+                const pos = len - fadeOutSamples + i;
+                const t   = i / fadeOutSamples;
+                data[pos] *= 0.5 + 0.5 * Math.cos(t * Math.PI); // 1 → 0
+            }
+        }
+        return buffer;
+    }
+
+    /**
+     * 切り抜き + フェードを一括適用してノーマライズ
+     * @param {AudioBuffer} buffer  - 元バッファ（破壊しない）
+     * @param {object} opts
+     *   startSec: 開始秒 (default 0)
+     *   endSec:   終了秒 (default = 全体)
+     *   fadeIn:   フェードイン秒 (default 0)
+     *   fadeOut:  フェードアウト秒 (default 0)
+     * @returns {AudioBuffer} 新しいバッファ
+     */
+    applyEdits(buffer, opts = {}) {
+        const { startSec = 0, endSec = 0, fadeIn = 0, fadeOut = 0 } = opts;
+        let result;
+
+        // 切り抜きが必要な場合だけ trim
+        const doTrim = startSec > 0 || (endSec > 0 && endSec < buffer.duration - 0.05);
+        if (doTrim) {
+            result = this.trimBuffer(buffer, startSec, endSec || buffer.duration);
+        } else {
+            // コピーを作って元バッファを破壊しない
+            const copy = this.engine.ctx.createBuffer(
+                buffer.numberOfChannels, buffer.length, buffer.sampleRate);
+            for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
+                copy.getChannelData(ch).set(buffer.getChannelData(ch));
+            }
+            result = copy;
+        }
+
+        if (fadeIn > 0 || fadeOut > 0) {
+            this.applyFades(result, fadeIn, fadeOut);
+        }
+
+        return this._normalize(result);
+    }
+
+    // ============================================
     // ユーティリティ
     // ============================================
 

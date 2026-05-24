@@ -1669,6 +1669,172 @@ body {
 }
 
 /* ============================================
+   PART CARD – EDIT PANEL (切り抜き・フェード)
+   ============================================ */
+
+.part-edit-section {
+    margin-top: 10px;
+    border-top: 1px solid var(--border);
+    padding-top: 8px;
+}
+
+.part-edit-toggle {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 7px 10px;
+    background: var(--bg-primary);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.18s;
+}
+.part-edit-toggle:hover {
+    background: var(--bg-surface);
+    border-color: var(--accent-secondary);
+    color: var(--accent-secondary);
+}
+.part-edit-chevron {
+    margin-left: auto;
+    font-size: 10px;
+    transition: transform 0.2s;
+}
+
+.part-edit-panel {
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.part-edit-panel.hidden { display: none; }
+
+/* 波形 + レンジオーバーレイ */
+.edit-waveform-wrap {
+    position: relative;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    background: var(--waveform-bg);
+}
+.edit-waveform-canvas {
+    display: block;
+    width: 100%;
+    height: 44px;
+}
+.edit-range-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+.edit-range-bar {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    background: rgba(14,165,233,0.25);
+    border-left:  2px solid var(--accent-secondary);
+    border-right: 2px solid var(--accent-secondary);
+    left: 0%;
+    width: 100%;
+    transition: left 0.05s, width 0.05s;
+}
+
+/* コントロールグリッド */
+.edit-controls-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.edit-ctrl-row {
+    display: grid;
+    grid-template-columns: 96px 1fr 56px;
+    align-items: center;
+    gap: 6px;
+}
+.edit-ctrl-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+}
+.edit-ctrl-label i {
+    width: 12px;
+    text-align: center;
+    color: var(--accent-secondary);
+}
+.edit-slider {
+    width: 100%;
+    accent-color: var(--accent-secondary);
+    cursor: pointer;
+}
+.edit-ctrl-value {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--accent-secondary);
+    text-align: right;
+    white-space: nowrap;
+}
+
+/* 適用ボタン行 */
+.edit-apply-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.edit-apply-btn {
+    flex: 1;
+    padding: 8px 14px;
+    background: var(--accent-secondary);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.2s;
+}
+.edit-apply-btn:hover:not(:disabled) { background: #0284c7; }
+.edit-apply-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.edit-reset-btn {
+    padding: 7px 12px;
+    background: transparent;
+    border: 1.5px solid var(--border-light);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: all 0.15s;
+}
+.edit-reset-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.edit-status {
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* ============================================
    SETTINGS MODAL
    ============================================ */
 .settings-modal {
