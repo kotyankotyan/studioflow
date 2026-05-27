@@ -1,3 +1,14 @@
+/** HTML特殊文字をエスケープするユーティリティ */
+function escapeHtml(str) {
+    if (str == null) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 class StudioFlowDAW {
     constructor() {
         this.audioEngine = new AudioEngine();
@@ -253,7 +264,7 @@ class StudioFlowDAW {
                 <div class="part-card-header">
                     <div class="part-card-title">
                         <span class="part-icon">${info.icon}</span>
-                        <span class="part-name">${cleanName}</span>
+                        <span class="part-name">${escapeHtml(cleanName)}</span>
                     </div>
                     <div class="part-card-actions">
                         ${!isOriginal ? `<button class="part-btn btn-part-preview" data-track-id="${track.id}" title="5秒だけ試聴"><i class="fas fa-play"></i></button>` : ''}
@@ -1190,10 +1201,10 @@ class StudioFlowDAW {
         div.dataset.trackId = track.id;
 
         div.innerHTML = `
-            <div class="track-color" style="background: ${track.color}"></div>
+            <div class="track-color" style="background: ${escapeHtml(track.color)}"></div>
             <div class="track-header">
                 <div class="track-header-top">
-                    <input class="track-name" value="${track.name}" data-track-id="${track.id}">
+                    <input class="track-name" value="${escapeHtml(track.name)}" data-track-id="${escapeHtml(track.id)}">
                 </div>
                 <div class="track-controls">
                     <button class="btn-mute" data-track-id="${track.id}" title="ミュート">M</button>
@@ -1459,11 +1470,11 @@ class StudioFlowDAW {
 
     _updatePropertiesPanel(track, clip) {
         const content = document.getElementById('properties-content');
-        let html = `<div style="font-size:12px"><p><strong>トラック:</strong> ${track.name}</p>`;
+        let html = `<div style="font-size:12px"><p><strong>トラック:</strong> ${escapeHtml(track.name)}</p>`;
         if (clip) {
             html += `<hr style="border-color:var(--border);margin:8px 0">`;
-            html += `<p><strong>クリップ:</strong> ${clip.name}</p>`;
-            html += `<p><strong>長さ:</strong> ${clip.duration.toFixed(2)}s</p>`;
+            html += `<p><strong>クリップ:</strong> ${escapeHtml(clip.name)}</p>`;
+            html += `<p><strong>長さ:</strong> ${escapeHtml(clip.duration.toFixed(2))}s</p>`;
         }
         html += `</div>`;
         content.innerHTML = html;
@@ -1477,7 +1488,7 @@ class StudioFlowDAW {
         effects.forEach((effect, i) => {
             const item = document.createElement('div');
             item.className = 'effect-item';
-            item.innerHTML = `<span class="effect-item-name">${effect.name}</span><button class="effect-remove" data-index="${i}"><i class="fas fa-times"></i></button>`;
+            item.innerHTML = `<span class="effect-item-name">${escapeHtml(effect.name)}</span><button class="effect-remove" data-index="${i}"><i class="fas fa-times"></i></button>`;
             item.querySelector('.effect-remove').addEventListener('click', () => {
                 this.effects.removeEffectFromTrack(track.id, i);
                 this._updateEffectsPanel(track);
@@ -1495,7 +1506,7 @@ class StudioFlowDAW {
             ch.dataset.trackId = track.id;
             const trackNameShort = track.name.length > 8 ? track.name.replace(/^[^\s]+\s*/,'').substring(0,8) + '…' : track.name;
             ch.innerHTML = `
-                <h4 title="${track.name}">${trackNameShort}</h4>
+                <h4 title="${escapeHtml(track.name)}">${escapeHtml(trackNameShort)}</h4>
                 <div class="mixer-eq-section">
                     <div class="mixer-eq-row">
                         <span class="mixer-eq-band-label">Hi</span>
@@ -1586,10 +1597,10 @@ class StudioFlowDAW {
             const clip = document.createElement('div');
             clip.className = 'remix-clip';
             clip.innerHTML = `
-                <div class="remix-clip-color" style="background:${song.color}"></div>
-                <span>${song.name}</span>
-                <small style="color:var(--text-muted)">(${song.duration.toFixed(1)}s)</small>
-                <button class="remove-btn" data-song-id="${song.id}"><i class="fas fa-times"></i></button>
+                <div class="remix-clip-color" style="background:${escapeHtml(song.color)}"></div>
+                <span>${escapeHtml(song.name)}</span>
+                <small style="color:var(--text-muted)">(${escapeHtml(song.duration.toFixed(1))}s)</small>
+                <button class="remove-btn" data-song-id="${escapeHtml(song.id)}"><i class="fas fa-times"></i></button>
             `;
             clip.querySelector('.remove-btn').addEventListener('click', () => { this.remix.removeSong(song.id); this._updateRemixUI(); });
             clip.addEventListener('click', () => { this.remix.addToSequence(song.id); this._updateRemixSequenceUI(); });
@@ -1611,7 +1622,7 @@ class StudioFlowDAW {
             }
             const item = document.createElement('div');
             item.className = 'sequence-item';
-            item.innerHTML = `<div class="seq-color" style="background:${song.color}"></div><span>${song.name}</span><button class="seq-remove" data-index="${i}"><i class="fas fa-times"></i></button>`;
+            item.innerHTML = `<div class="seq-color" style="background:${escapeHtml(song.color)}"></div><span>${escapeHtml(song.name)}</span><button class="seq-remove" data-index="${i}"><i class="fas fa-times"></i></button>`;
             item.querySelector('.seq-remove').addEventListener('click', (e) => { e.stopPropagation(); this.remix.removeFromSequence(i); this._updateRemixSequenceUI(); });
             list.appendChild(item);
         });
@@ -2338,7 +2349,7 @@ class StudioFlowDAW {
         const toast = document.createElement('div');
         toast.className = `toast ${type}`;
         const icons = { success: 'check-circle', error: 'exclamation-circle', info: 'info-circle' };
-        toast.innerHTML = `<i class="fas fa-${icons[type] || 'info-circle'}"></i> ${message}`;
+        toast.innerHTML = `<i class="fas fa-${icons[type] || 'info-circle'}"></i> ${escapeHtml(message)}`;
         container.appendChild(toast);
         setTimeout(() => {
             toast.style.opacity = '0';
@@ -2381,9 +2392,29 @@ document.addEventListener('DOMContentLoaded', async () => {
             toggleBtn.querySelector('i').className = 'fas fa-' + (isText ? 'eye' : 'eye-slash');
         });
 
+        // ロックアウト状態を確認して表示
+        function checkAndShowLockout() {
+            const lockout = auth.getLockoutState();
+            if (lockout.locked) {
+                const remainMs = lockout.until - Date.now();
+                const remainMin = Math.ceil(remainMs / 60000);
+                errorEl.textContent = `ログイン試行回数が上限を超えました。${remainMin}分後に再試行してください。`;
+                errorEl.classList.remove('hidden');
+                btn.disabled = true;
+                input.disabled = true;
+                return true;
+            }
+            btn.disabled = false;
+            input.disabled = false;
+            return false;
+        }
+        checkAndShowLockout();
+
         // フォーム送信
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
+            if (checkAndShowLockout()) return;
+
             const pw = input.value.trim();
             if (!pw) return;
 
@@ -2401,7 +2432,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             } else {
                 btn.classList.remove('loading');
                 btn.innerHTML = '<i class="fas fa-unlock"></i> ログイン';
-                errorEl.classList.remove('hidden');
+                if (checkAndShowLockout()) {
+                    // Lockout just triggered — message already set
+                } else {
+                    const lockout = auth.getLockoutState();
+                    const remaining = Math.max(0, auth.MAX_ATTEMPTS - (lockout.attempts || 0));
+                    errorEl.textContent = `パスワードが違います。あと${remaining}回失敗するとロックされます。`;
+                    errorEl.classList.remove('hidden');
+                }
                 input.classList.add('error');
                 input.value = '';
                 input.focus();
@@ -2497,7 +2535,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             // 新しいパスワードをlocalStorageに永続保存
             await auth.changePassword(newPw);
 
-            sucEl.textContent = `✅ パスワードを「${newPw}」に変更しました。次回ログインから新しいパスワードが使えます。`;
+            sucEl.textContent = `✅ パスワードを変更しました。次回ログインから新しいパスワードが使えます。`;
             sucEl.classList.remove('hidden');
 
             btn.disabled = false;
