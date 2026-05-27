@@ -1783,9 +1783,12 @@ class StudioFlowDAW {
     }
 
     _hexToRgb(hex) {
-        const r = parseInt(hex.slice(1,3),16);
-        const g = parseInt(hex.slice(3,5),16);
-        const b = parseInt(hex.slice(5,7),16);
+        // 3桁 (#RGB) を6桁に展開してからパース
+        let h = hex.replace(/^#/, '');
+        if (h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+        const r = parseInt(h.slice(0,2),16);
+        const g = parseInt(h.slice(2,4),16);
+        const b = parseInt(h.slice(4,6),16);
         return `${r},${g},${b}`;
     }
 
@@ -1836,12 +1839,19 @@ class StudioFlowDAW {
     }
 
     _applyBufferToClip(track, clip, newBuffer) {
+        // 再生中の場合は一時停止してから適用（旧バッファのまま再生が続くのを防ぐ）
+        const wasPlaying = this.audioEngine.isPlaying;
+        if (wasPlaying) {
+            this.audioEngine.stop();
+            document.getElementById('btn-play').innerHTML = '<i class="fas fa-play"></i>';
+            document.getElementById('btn-play').classList.remove('active');
+        }
         clip.buffer = newBuffer;
         clip.duration = newBuffer.duration;
         this._renderClip(track, clip);
         this._updateCanvasAreaWidths?.();
-        // Refresh easy mode cards if in easy mode
         if (this.easyMode) this._renderEasyCards?.();
+        if (wasPlaying) this._toast('適用しました。▶ 再生で確認できます', 'info');
     }
 
     _setupProToolsListeners() {
@@ -1996,10 +2006,31 @@ class StudioFlowDAW {
         // 7. スマート分割
         document.getElementById('btn-auto-segment')?.addEventListener('click', async () => {
             const tc = getClip(); if (!tc) return;
+            const dur = tc.clip.buffer.duration;
             const n = parseInt(document.querySelector('#segment-count-chips .preset-chip.active')?.dataset.val || '4');
+
+            // 最低限必要な長さチェック（1分割あたり10秒以上推奨）
+            if (dur < n * 10) {
+                this._toast(`曲が短すぎます（${dur.toFixed(0)}秒）。${n}分割には${n * 10}秒以上の音源が必要です`, 'error');
+                return;
+            }
+
             this._showLoading('波形を分析中...');
             try {
                 const segments = this.proTools.autoSegment(tc.clip.buffer, n);
+
+                // 分割できなかった場合（1セグメントのみ返ってきた）
+                if (segments.length < 2) {
+                    this._hideLoading();
+                    this._toast('エネルギー変化が少なく自動分割できませんでした。曲全体が均一なため分割点が検出されませんでした', 'error');
+                    return;
+                }
+
+                // 要求より少ない分割数になった場合も通知
+                if (segments.length < n) {
+                    this._toast(`明確な区切りが${segments.length}箇所のみ検出されました（要求: ${n}分割）`, 'info');
+                }
+
                 const segTrack = this.addTrack(tc.track.name + ' [分割]');
                 const labels = ['Aメロ', 'Bメロ', 'サビ', 'Cメロ', 'ブリッジ', 'アウトロ', 'イントロ', 'ソロ'];
                 segments.forEach((seg, i) => {
