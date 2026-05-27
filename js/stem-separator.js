@@ -65,18 +65,27 @@ class StemSeparator {
         return offCtx.startRendering();
     }
 
-    // ヘルパー: ピーク正規化
-    _normalizeBuffer(buffer) {
+    // ヘルパー: ピーク正規化（非同期・メインスレッドをブロックしない）
+    async _normalizeBuffer(buffer) {
+        const chunkSize = 44100;
         let peak = 0;
         for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
             const d = buffer.getChannelData(ch);
-            for (let i = 0; i < d.length; i++) peak = Math.max(peak, Math.abs(d[i]));
+            for (let i = 0; i < d.length; i += chunkSize) {
+                const end = Math.min(i + chunkSize, d.length);
+                for (let j = i; j < end; j++) peak = Math.max(peak, Math.abs(d[j]));
+                await new Promise(r => setTimeout(r, 0));
+            }
         }
         if (peak < 0.01) return buffer;
         const gain = 0.85 / peak;
         for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
             const d = buffer.getChannelData(ch);
-            for (let i = 0; i < d.length; i++) d[i] *= gain;
+            for (let i = 0; i < d.length; i += chunkSize) {
+                const end = Math.min(i + chunkSize, d.length);
+                for (let j = i; j < end; j++) d[j] *= gain;
+                await new Promise(r => setTimeout(r, 0));
+            }
         }
         return buffer;
     }
@@ -132,7 +141,7 @@ class StemSeparator {
             src.connect(hp); hp.connect(lp); lp.connect(offCtx.destination);
             src.start(0);
         }
-        return this._normalizeBuffer(await offCtx.startRendering());
+        return await this._normalizeBuffer(await offCtx.startRendering());
     }
 
     /**
@@ -185,7 +194,7 @@ class StemSeparator {
         mix.connect(comp); comp.connect(offCtx.destination);
 
         src.start(0);
-        return this._normalizeBuffer(await offCtx.startRendering());
+        return await this._normalizeBuffer(await offCtx.startRendering());
     }
 
     /**

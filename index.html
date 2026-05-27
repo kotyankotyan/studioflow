@@ -46,10 +46,10 @@
                 <span>StudioFlow</span>
             </div>
             <div class="transport-controls">
-                <button id="btn-rewind" title="巻き戻し"><i class="fas fa-backward"></i></button>
-                <button id="btn-play" title="再生"><i class="fas fa-play"></i></button>
-                <button id="btn-stop" title="停止"><i class="fas fa-stop"></i></button>
-                <button id="btn-loop" title="ループ"><i class="fas fa-repeat"></i></button>
+                <button id="btn-rewind" title="先頭に戻す（Home）"><i class="fas fa-backward"></i></button>
+                <button id="btn-play" title="再生 / 一時停止（Space）"><i class="fas fa-play"></i></button>
+                <button id="btn-stop" title="停止して先頭に戻る"><i class="fas fa-stop"></i></button>
+                <button id="btn-loop" title="ループ再生：ON/OFF切替"><i class="fas fa-repeat"></i></button>
                 <div class="time-display">
                     <span id="current-time">00:00.000</span>
                     <span class="separator">/</span>
@@ -61,10 +61,13 @@
                 </div>
             </div>
             <div class="top-actions">
-                <button id="btn-undo" title="元に戻す"><i class="fas fa-undo"></i></button>
-                <button id="btn-redo" title="やり直し"><i class="fas fa-redo"></i></button>
-                <button id="btn-export" title="書き出し" class="export-btn-top"><i class="fas fa-download"></i> 書き出し</button>
-                <button id="btn-settings" title="設定・パスワード変更"><i class="fas fa-cog"></i></button>
+                <button id="btn-back-to-easy" class="back-easy-btn hidden" title="かんたんモードに戻る（スライダーで簡単調整）">
+                    <i class="fas fa-arrow-left"></i> かんたんモード
+                </button>
+                <button id="btn-undo" title="元に戻す（Ctrl+Z）"><i class="fas fa-undo"></i></button>
+                <button id="btn-redo" title="やり直し（Ctrl+Y）"><i class="fas fa-redo"></i></button>
+                <button id="btn-export" title="ミックスをWAV/MP3で書き出す" class="export-btn-top"><i class="fas fa-download"></i> 書き出し</button>
+                <button id="btn-settings" title="パスワード変更・設定"><i class="fas fa-cog"></i></button>
                 <button id="btn-logout" title="ログアウト"><i class="fas fa-sign-out-alt"></i></button>
             </div>
         </header>
@@ -112,31 +115,31 @@
             <div id="easy-action-bar" class="hidden">
                 <!-- Row 1: main actions -->
                 <div class="action-bar-row action-bar-row-main">
-                    <button id="btn-easy-reimport" class="abar-btn abar-secondary">
+                    <button id="btn-easy-reimport" class="abar-btn abar-secondary" title="別の曲を読み込む（現在の編集は上書きされます）">
                         <i class="fas fa-cloud-upload-alt"></i><span>別の曲</span>
                     </button>
-                    <button id="btn-easy-preset" class="abar-btn abar-preset">
+                    <button id="btn-easy-preset" class="abar-btn abar-preset" title="プリセット：ポップ・ロック・EDMなど音楽ジャンルに合った設定を一括適用">
                         <i class="fas fa-magic"></i><span>プリセット</span>
                     </button>
-                    <button id="btn-easy-compare" class="abar-btn abar-compare">
+                    <button id="btn-easy-compare" class="abar-btn abar-compare" title="原曲と比較：編集前の音と聴き比べる（再生中に切り替え可）">
                         <i class="fas fa-exchange-alt"></i><span>原曲と比較</span>
                     </button>
                     <div class="abar-spacer"></div>
-                    <button id="btn-easy-creator" class="abar-btn abar-creator">
+                    <button id="btn-easy-creator" class="abar-btn abar-creator" title="素材を作る：ループ加工・ボーカル除去・BPM変換でBooth販売用ファイルを生成">
                         <i class="fas fa-shopping-bag"></i><span>素材を作る</span>
                     </button>
-                    <button id="btn-easy-export" class="abar-btn abar-export">
+                    <button id="btn-easy-export" class="abar-btn abar-export" title="書き出し：編集済みの曲をWAVまたはMP3で保存">
                         <i class="fas fa-download"></i><span>書き出し</span>
                     </button>
                 </div>
                 <!-- Row 2: info + advanced -->
                 <div class="action-bar-row action-bar-row-sub">
-                    <span id="storage-indicator" class="storage-indicator" title="ブラウザに自動保存中">💾 保存済み</span>
+                    <span id="storage-indicator" class="storage-indicator" title="ブラウザに自動保存中（次回アクセス時も復元されます）">💾 保存済み</span>
                     <div class="abar-spacer"></div>
-                    <button id="btn-easy-clear" class="abar-btn abar-danger" title="現在の曲を削除">
+                    <button id="btn-easy-clear" class="abar-btn abar-danger" title="現在の曲・編集をすべて削除してリセット">
                         <i class="fas fa-trash"></i><span>削除</span>
                     </button>
-                    <button id="btn-toggle-advanced" class="abar-btn abar-advanced">
+                    <button id="btn-toggle-advanced" class="abar-btn abar-advanced" title="上級者モード：タイムライン・ミキサー・エフェクトなど詳細な編集機能を表示">
                         <i class="fas fa-sliders-h"></i><span>上級者モード</span>
                     </button>
                 </div>
@@ -151,24 +154,24 @@
                 <aside id="left-sidebar">
                     <div class="tool-section">
                         <h3>ツール</h3>
-                        <button class="tool-btn active" data-tool="select" title="選択"><i class="fas fa-mouse-pointer"></i><span>選択</span></button>
-                        <button class="tool-btn tool-btn-cut" data-tool="cut" title="カット"><i class="fas fa-cut"></i><span>カット</span></button>
-                        <button class="tool-btn tool-btn-move" data-tool="move" title="移動"><i class="fas fa-arrows-alt"></i><span>移動</span></button>
-                        <button class="tool-btn tool-btn-zoom" data-tool="zoom" title="ズーム"><i class="fas fa-search-plus"></i><span>ズーム</span></button>
-                        <button class="tool-btn tool-btn-draw" data-tool="draw" title="オートメーション描画"><i class="fas fa-pen"></i><span>描画</span></button>
+                        <button class="tool-btn active" data-tool="select" title="選択ツール：クリップをクリックして選択・プロパティ表示"><i class="fas fa-mouse-pointer"></i><span>選択</span></button>
+                        <button class="tool-btn tool-btn-cut" data-tool="cut" title="カットツール：クリップをクリックした位置で分割（Delete/Backspaceで削除）"><i class="fas fa-cut"></i><span>カット</span></button>
+                        <button class="tool-btn tool-btn-move" data-tool="move" title="移動ツール：クリップをドラッグして配置を変更"><i class="fas fa-arrows-alt"></i><span>移動</span></button>
+                        <button class="tool-btn tool-btn-zoom" data-tool="zoom" title="ズームツール：クリックで拡大、Altクリックで縮小"><i class="fas fa-search-plus"></i><span>ズーム</span></button>
+                        <button class="tool-btn tool-btn-draw" data-tool="draw" title="描画ツール：オートメーションカーブを手書きで描く（オートメーションパネルで使用）"><i class="fas fa-pen"></i><span>描画</span></button>
                     </div>
                     <div class="tool-section">
                         <h3>読込</h3>
-                        <button id="btn-import-audio" title="曲をアップロード" class="main-import-btn"><i class="fas fa-cloud-upload-alt"></i><span>読込</span></button>
-                        <button id="btn-import-multiple" title="リミックス用に複数曲"><i class="fas fa-layer-group"></i><span>複数</span></button>
-                        <button id="btn-add-track" title="空トラック追加"><i class="fas fa-plus"></i><span>追加</span></button>
+                        <button id="btn-import-audio" title="音声ファイルを読み込む（MP3/WAV/FLAC対応）" class="main-import-btn"><i class="fas fa-cloud-upload-alt"></i><span>読込</span></button>
+                        <button id="btn-import-multiple" title="複数曲を一括読み込み（リミックス・メドレー用）"><i class="fas fa-layer-group"></i><span>複数</span></button>
+                        <button id="btn-add-track" title="空のトラックを追加（別の音源を重ねて再生）"><i class="fas fa-plus"></i><span>追加</span></button>
                     </div>
                     <div class="tool-section">
                         <h3>AI機能</h3>
-                        <button id="btn-stem-split" class="ai-feature-btn" title="音源分離 — クリックで説明を見る" data-ai="stem"><i class="fas fa-project-diagram"></i><span>分離</span></button>
-                        <button id="btn-midi-convert" class="ai-feature-btn" title="MIDI変換 — クリックで説明を見る" data-ai="midi"><i class="fas fa-keyboard"></i><span>MIDI</span></button>
-                        <button id="btn-vocal-enhance" class="ai-feature-btn" title="ボーカル強化 — クリックで説明を見る" data-ai="vocal"><i class="fas fa-microphone"></i><span>強化</span></button>
-                        <button id="btn-ai-help" class="tool-btn ai-help-btn" title="AI機能について"><i class="fas fa-question-circle"></i><span>説明</span></button>
+                        <button id="btn-stem-split" class="ai-feature-btn" title="音源分離：選択トラックをボーカル・ドラム・ベース・その他に自動分離" data-ai="stem"><i class="fas fa-project-diagram"></i><span>分離</span></button>
+                        <button id="btn-midi-convert" class="ai-feature-btn" title="MIDI変換：音声からメロディを抽出してMIDIファイルに変換（楽譜作成・他ソフトへの移植）" data-ai="midi"><i class="fas fa-keyboard"></i><span>MIDI</span></button>
+                        <button id="btn-vocal-enhance" class="ai-feature-btn" title="ボーカル強化：ピッチ補正・ハーモニー追加・ノイズ除去" data-ai="vocal"><i class="fas fa-microphone"></i><span>強化</span></button>
+                        <button id="btn-ai-help" class="tool-btn ai-help-btn" title="AI機能の詳しい説明を見る"><i class="fas fa-question-circle"></i><span>説明</span></button>
                     </div>
                 </aside>
 
@@ -201,12 +204,13 @@
             <div id="bottom-panel">
                 <div class="bottom-panel-resize-handle"></div>
                 <div class="bottom-tabs">
-                    <button class="bottom-tab active" data-panel="mixer">ミキサー</button>
-                    <button class="bottom-tab" data-panel="mastering">マスタリング</button>
-                    <button class="bottom-tab" data-panel="vocal">ボーカル補正</button>
-                    <button class="bottom-tab" data-panel="automation">オートメーション</button>
-                    <button class="bottom-tab" data-panel="remix">リミックス</button>
-                    <button id="btn-toggle-bottom-panel" class="bottom-panel-toggle-btn" title="パネルを折りたたむ">
+                    <button class="bottom-tab active" data-panel="mixer" title="ミキサー：各トラックの音量・パン・EQ・リバーブを個別調整">ミキサー</button>
+                    <button class="bottom-tab" data-panel="mastering" title="マスタリング：全体の音質・音量・コンプレッサーを最終調整">マスタリング</button>
+                    <button class="bottom-tab" data-panel="vocal" title="ボーカル補正：ピッチ補正・ハーモニー生成（選択トラックに適用）">ボーカル補正</button>
+                    <button class="bottom-tab" data-panel="automation" title="オートメーション：音量・パンを時間軸で自動変化させる">オートメーション</button>
+                    <button class="bottom-tab" data-panel="remix" title="リミックス：複数の曲をつなぎ合わせてメドレーを作る">リミックス</button>
+                    <button class="bottom-tab" data-panel="protools" title="プロ仕上げ：無音カット・フェード・ボーカル加工・FX挿入など">✨ プロ仕上げ</button>
+                    <button id="btn-toggle-bottom-panel" class="bottom-panel-toggle-btn" title="パネルを折りたたむ / 展開する">
                         <i class="fas fa-chevron-down"></i>
                     </button>
                 </div>
@@ -336,36 +340,233 @@
                 </div>
 
                 <div class="bottom-content" id="panel-remix">
-                    <div class="remix-editor">
-                        <div class="remix-toolbar">
-                            <button id="btn-remix-add"><i class="fas fa-plus"></i> 曲を追加</button>
-                            <button id="btn-remix-auto"><i class="fas fa-magic"></i> 自動ミックス</button>
-                            <div class="crossfade-control">
-                                <label>クロスフェード:</label>
-                                <input type="range" id="crossfade-duration" min="0" max="10" step="0.1" value="3">
-                                <span id="crossfade-value">3.0秒</span>
+                    <div class="plarail-editor">
+                        <!-- Song library / depot -->
+                        <div class="plarail-library">
+                            <div class="plarail-library-header">
+                                <span class="plarail-section-label"><i class="fas fa-music"></i> 曲ライブラリ</span>
+                                <div class="plarail-library-actions">
+                                    <button id="btn-remix-add" title="曲を追加"><i class="fas fa-plus"></i> 追加</button>
+                                    <button id="btn-remix-auto" title="エネルギー順に自動並び替え"><i class="fas fa-magic"></i> 自動</button>
+                                </div>
                             </div>
-                            <select id="crossfade-type">
-                                <option value="linear">リニア</option>
-                                <option value="equal-power" selected>イコールパワー</option>
-                                <option value="s-curve">Sカーブ</option>
-                                <option value="exponential">指数</option>
-                            </select>
+                            <div id="plarail-song-pool" class="plarail-song-pool">
+                                <div class="plarail-empty-hint">← 曲を追加してプラレールみたいにつなごう！</div>
+                            </div>
                         </div>
-                        <div id="remix-timeline"><div id="remix-tracks"></div></div>
-                        <div class="remix-sequence">
-                            <h4>再生順序 (ドラッグで並び替え)</h4>
-                            <div id="remix-sequence-list"></div>
-                            <p class="hint">曲を追加して再生順序を設定してください。</p>
+
+                        <!-- Rail / connection area -->
+                        <div class="plarail-rail-section">
+                            <div class="plarail-rail-header">
+                                <span class="plarail-section-label"><i class="fas fa-train"></i> 接続レール（ドラッグ＆ドロップで並び替え）</span>
+                                <div class="plarail-rail-actions">
+                                    <div class="crossfade-control">
+                                        <label>継ぎ目:</label>
+                                        <input type="range" id="crossfade-duration" min="0" max="10" step="0.5" value="3">
+                                        <span id="crossfade-value">3.0秒</span>
+                                        <select id="crossfade-type">
+                                            <option value="equal-power" selected>イコールパワー</option>
+                                            <option value="linear">リニア</option>
+                                            <option value="s-curve">Sカーブ</option>
+                                            <option value="exponential">指数</option>
+                                        </select>
+                                    </div>
+                                    <button id="btn-remix-export" title="レールの曲順でひとつの音声ファイルに書き出し"><i class="fas fa-download"></i> 書き出し</button>
+                                </div>
+                            </div>
+                            <div class="plarail-rail-container" id="plarail-rail-container">
+                                <div class="plarail-track-line"></div>
+                                <div class="plarail-start-cap"><i class="fas fa-play"></i></div>
+                                <div id="plarail-cars" class="plarail-cars"></div>
+                                <div class="plarail-drop-zone" id="plarail-drop-end">
+                                    <div class="plarail-drop-inner">＋<br><small>ここへドロップ</small></div>
+                                </div>
+                                <div class="plarail-end-cap"><i class="fas fa-stop"></i></div>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Back to easy mode button -->
-            <button id="btn-back-to-easy" class="back-easy-btn">
-                <i class="fas fa-arrow-left"></i> かんたんモードに戻る
-            </button>
+                <!-- Pro Tools Panel -->
+                <div class="bottom-content" id="panel-protools">
+                    <div class="pro-tools-panel">
+
+                        <!-- Target track selector -->
+                        <div class="pro-target-row">
+                            <span class="pro-target-label"><i class="fas fa-crosshairs"></i> 適用先トラック:</span>
+                            <select id="pro-target-track"></select>
+                            <span class="pro-target-hint">ここで選んだトラックのクリップに効果を適用します</span>
+                        </div>
+
+                        <!-- Section: クリーンアップ -->
+                        <div class="pro-section-title"><i class="fas fa-cut"></i> クリーンアップ</div>
+                        <div class="pro-cards-row">
+
+                            <div class="pro-card">
+                                <div class="pro-card-header">
+                                    <span class="pro-card-icon">✂️</span>
+                                    <div>
+                                        <div class="pro-card-title">無音カット</div>
+                                        <div class="pro-card-desc">曲の最初・最後の無音をワンクリックで除去</div>
+                                    </div>
+                                </div>
+                                <div class="pro-card-controls">
+                                    <label>検出感度:</label>
+                                    <input type="range" id="silence-threshold" min="1" max="5" step="1" value="2">
+                                    <span id="silence-threshold-val">標準</span>
+                                </div>
+                                <button class="pro-apply-btn" id="btn-trim-silence">適用</button>
+                            </div>
+
+                            <div class="pro-card">
+                                <div class="pro-card-header">
+                                    <span class="pro-card-icon">🌅</span>
+                                    <div>
+                                        <div class="pro-card-title">アウトロ フェードアウト</div>
+                                        <div class="pro-card-desc">曲の終わりをプロっぽくなめらかにフェード</div>
+                                    </div>
+                                </div>
+                                <div class="pro-card-controls">
+                                    <label>長さ:</label>
+                                    <input type="range" id="fade-duration" min="1" max="10" step="0.5" value="3">
+                                    <span id="fade-duration-val">3.0秒</span>
+                                    <select id="fade-type">
+                                        <option value="exponential" selected>自然（指数）</option>
+                                        <option value="s-curve">S字</option>
+                                        <option value="linear">リニア</option>
+                                    </select>
+                                </div>
+                                <button class="pro-apply-btn" id="btn-outro-fade">適用</button>
+                            </div>
+
+                        </div>
+
+                        <!-- Section: ボーカル加工 -->
+                        <div class="pro-section-title"><i class="fas fa-microphone-alt"></i> ボーカル加工</div>
+                        <div class="pro-cards-row">
+
+                            <div class="pro-card">
+                                <div class="pro-card-header">
+                                    <span class="pro-card-icon">🎤</span>
+                                    <div>
+                                        <div class="pro-card-title">ケロケロ / オートチューン</div>
+                                        <div class="pro-card-desc">ロボット風・T-Pain風のボーカル加工</div>
+                                    </div>
+                                </div>
+                                <div class="pro-card-controls">
+                                    <div class="preset-chips" id="autotune-style-chips">
+                                        <button class="preset-chip active" data-val="kero">ケロケロ</button>
+                                        <button class="preset-chip" data-val="smooth">スムース</button>
+                                    </div>
+                                </div>
+                                <div class="pro-card-controls">
+                                    <label>強さ:</label>
+                                    <input type="range" id="autotune-intensity" min="0.2" max="1" step="0.1" value="0.7" style="flex:1;min-width:80px">
+                                    <span id="autotune-intensity-val" style="min-width:34px;text-align:right">70%</span>
+                                </div>
+                                <button class="pro-apply-btn" id="btn-autotune">適用</button>
+                            </div>
+
+                            <div class="pro-card">
+                                <div class="pro-card-header">
+                                    <span class="pro-card-icon">💥</span>
+                                    <div>
+                                        <div class="pro-card-title">J-POPコンプ</div>
+                                        <div class="pro-card-desc">今風のJ-POP・DTM風、存在感ある声に</div>
+                                    </div>
+                                </div>
+                                <div class="pro-card-controls">
+                                    <div class="preset-chips" id="vcomp-preset-chips">
+                                        <button class="preset-chip" data-val="light">軽め</button>
+                                        <button class="preset-chip active" data-val="medium">普通</button>
+                                        <button class="preset-chip" data-val="heavy">強め</button>
+                                    </div>
+                                </div>
+                                <button class="pro-apply-btn" id="btn-vocal-comp">適用</button>
+                            </div>
+
+                        </div>
+
+                        <!-- Section: FX・演出 -->
+                        <div class="pro-section-title"><i class="fas fa-star"></i> 盛り上げFX</div>
+                        <div class="pro-cards-row">
+
+                            <div class="pro-card">
+                                <div class="pro-card-header">
+                                    <span class="pro-card-icon">⬆️</span>
+                                    <div>
+                                        <div class="pro-card-title">サビ前スウィープ</div>
+                                        <div class="pro-card-desc">「シュワーン」上昇音（リバースシンバル）を挿入してサビを盛り上げる</div>
+                                    </div>
+                                </div>
+                                <div class="pro-card-controls">
+                                    <label>長さ:</label>
+                                    <input type="range" id="sweep-duration" min="1" max="4" step="0.5" value="2" style="flex:1;min-width:80px">
+                                    <span id="sweep-duration-val" style="min-width:36px;text-align:right">2.0秒</span>
+                                </div>
+                                <div class="pro-card-controls">
+                                    <label>挿入位置(秒):</label>
+                                    <input type="number" id="sweep-position" min="0" step="1" value="0" style="width:64px;background:var(--bg-surface);border:1px solid var(--border);color:var(--text-primary);border-radius:4px;padding:3px 6px;font-size:11px">
+                                    <span style="font-size:9px;color:var(--text-muted)">(0 = 末尾に挿入)</span>
+                                </div>
+                                <button class="pro-apply-btn" id="btn-insert-sweep">新トラックに追加</button>
+                            </div>
+
+                            <div class="pro-card">
+                                <div class="pro-card-header">
+                                    <span class="pro-card-icon">🚀</span>
+                                    <div>
+                                        <div class="pro-card-title">ビルドアップFX</div>
+                                        <div class="pro-card-desc">緊張感を高める上昇音・ドラムロール</div>
+                                    </div>
+                                </div>
+                                <div class="pro-card-controls">
+                                    <div class="preset-chips" id="buildup-style-chips">
+                                        <button class="preset-chip active" data-val="riser">ライザー</button>
+                                        <button class="preset-chip" data-val="drum_buildup">ドラムロール</button>
+                                    </div>
+                                </div>
+                                <div class="pro-card-controls">
+                                    <label>長さ:</label>
+                                    <input type="range" id="buildup-duration" min="1" max="8" step="1" value="4" style="flex:1;min-width:80px">
+                                    <span id="buildup-duration-val" style="min-width:28px;text-align:right">4秒</span>
+                                </div>
+                                <button class="pro-apply-btn" id="btn-buildup-fx">新トラックに追加</button>
+                            </div>
+
+                        </div>
+
+                        <!-- Section: スマート分割 -->
+                        <div class="pro-section-title"><i class="fas fa-scissors"></i> スマート分割</div>
+                        <div class="pro-cards-row">
+
+                            <div class="pro-card pro-card-wide">
+                                <div class="pro-card-header">
+                                    <span class="pro-card-icon">🎵</span>
+                                    <div>
+                                        <div class="pro-card-title">波形自動分割</div>
+                                        <div class="pro-card-desc">曲のエネルギー変化を分析し、Aメロ・サビなどの区切りで自動的に複数クリップに分割します</div>
+                                    </div>
+                                </div>
+                                <div class="pro-card-controls">
+                                    <label>分割数:</label>
+                                    <div class="preset-chips" id="segment-count-chips">
+                                        <button class="preset-chip" data-val="2">2</button>
+                                        <button class="preset-chip" data-val="3">3</button>
+                                        <button class="preset-chip active" data-val="4">4</button>
+                                        <button class="preset-chip" data-val="6">6</button>
+                                        <button class="preset-chip" data-val="8">8</button>
+                                    </div>
+                                    <span style="font-size:9px;color:var(--text-muted);margin-left:4px">分割したクリップは新しいトラックに配置されます</span>
+                                </div>
+                                <button class="pro-apply-btn" id="btn-auto-segment">分割して配置</button>
+                            </div>
+
+                        </div>
+
+                    </div>
+                </div>
+
         </div>
 
         <!-- Preset Popup -->
@@ -839,6 +1040,7 @@
     <script src="js/automation.js"></script>
     <script src="js/mastering.js"></script>
     <script src="js/remix.js"></script>
+    <script src="js/pro-tools.js"></script>
     <script src="js/midi-converter.js"></script>
     <script src="js/export-manager.js"></script>
     <script src="js/creator.js"></script>

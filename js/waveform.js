@@ -82,7 +82,8 @@ class WaveformRenderer {
 
         if (!buffer) return;
 
-        ctx.fillStyle = 'rgba(74, 158, 255, 0.08)';
+        // 背景
+        ctx.fillStyle = 'rgba(13, 27, 42, 1)';
         ctx.fillRect(0, 0, width, height);
 
         const data = buffer.getChannelData(0);
@@ -96,10 +97,11 @@ class WaveformRenderer {
         const step = Math.max(1, Math.ceil(totalSamples / width));
         const amp = height / 2;
 
+        // 明るいグラジェントで視認性を高める
         const gradient = ctx.createLinearGradient(0, 0, 0, height);
-        gradient.addColorStop(0, 'rgba(74, 158, 255, 0.6)');
-        gradient.addColorStop(0.5, 'rgba(74, 158, 255, 0.9)');
-        gradient.addColorStop(1, 'rgba(74, 158, 255, 0.6)');
+        gradient.addColorStop(0,   'rgba(100, 180, 255, 0.85)');
+        gradient.addColorStop(0.5, 'rgba(74,  158, 255, 1.0)');
+        gradient.addColorStop(1,   'rgba(100, 180, 255, 0.85)');
         ctx.fillStyle = gradient;
 
         for (let i = 0; i < width; i++) {
@@ -115,7 +117,8 @@ class WaveformRenderer {
             ctx.fillRect(i, yMax, 1, Math.max(1, yMin - yMax));
         }
 
-        ctx.strokeStyle = 'rgba(74, 158, 255, 0.3)';
+        // 中心線
+        ctx.strokeStyle = 'rgba(74, 158, 255, 0.25)';
         ctx.lineWidth = 0.5;
         ctx.beginPath();
         ctx.moveTo(0, amp);

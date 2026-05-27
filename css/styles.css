@@ -1,4 +1,39 @@
 /* === StudioFlow DAW - Main Stylesheet === */
+
+/* ============================================
+   カスタムツールチップ（title属性を見やすく）
+   ============================================ */
+[title] {
+    position: relative;
+}
+[title]:hover::after {
+    content: attr(title);
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(10, 14, 30, 0.95);
+    color: #e2e8f0;
+    font-size: 11px;
+    font-weight: 400;
+    padding: 5px 9px;
+    border-radius: 5px;
+    white-space: nowrap;
+    max-width: 260px;
+    white-space: normal;
+    text-align: center;
+    line-height: 1.4;
+    z-index: 9999;
+    pointer-events: none;
+    border: 1px solid rgba(74, 158, 255, 0.2);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+/* 下に表示する場合（上端に近い要素） */
+.tool-sidebar [title]:hover::after,
+#bottom-panel [title]:hover::after {
+    top: calc(100% + 6px);
+    bottom: auto;
+}
 :root {
     --bg-primary: #1a1a2e;
     --bg-secondary: #16213e;
@@ -730,31 +765,29 @@ body {
 }
 #advanced-mode.hidden { display: none; }
 
-.back-easy-btn {
-    position: fixed;
-    top: 58px;
-    right: 10px;
-    padding: 4px 10px;
-    background: var(--bg-surface);
-    border: 1px solid var(--border);
-    color: var(--text-muted);
+#btn-back-to-easy.back-easy-btn {
+    padding: 0 12px;
+    background: #22c55e !important;
+    border: none !important;
+    color: #fff !important;
     border-radius: var(--radius);
-    font-size: 11px;
-    font-weight: 500;
+    font-size: 12px;
+    font-weight: 600;
     cursor: pointer;
-    z-index: 200;
     font-family: inherit;
     display: flex;
     align-items: center;
     gap: 5px;
-    opacity: 0.7;
     transition: var(--transition);
+    white-space: nowrap;
+    width: auto !important;
+    height: 32px;
 }
-.back-easy-btn:hover {
-    background: var(--bg-surface-hover);
-    color: var(--text-primary);
-    opacity: 1;
-    border-color: var(--border-light);
+#btn-back-to-easy.back-easy-btn:hover {
+    background: #16a34a !important;
+}
+#btn-back-to-easy.back-easy-btn.hidden {
+    display: none !important;
 }
 
 /* ============================================ */
@@ -1383,66 +1416,272 @@ body {
     border-radius: var(--radius); cursor: crosshair;
 }
 
-/* Remix */
-.remix-editor { width: 100%; display: flex; flex-direction: column; gap: 8px; }
-.remix-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.remix-toolbar button {
-    padding: 6px 12px; background: var(--bg-surface); border: 1px solid var(--border);
+/* Remix - Plarail Style */
+.plarail-editor { width: 100%; display: flex; flex-direction: column; gap: 10px; height: 100%; }
+
+.plarail-section-label { font-size: 11px; color: var(--text-secondary); font-weight: 600; display: flex; align-items: center; gap: 5px; }
+
+/* Library */
+.plarail-library { display: flex; flex-direction: column; gap: 6px; }
+.plarail-library-header { display: flex; align-items: center; justify-content: space-between; }
+.plarail-library-actions { display: flex; gap: 6px; }
+.plarail-library-actions button {
+    padding: 4px 10px; background: var(--bg-surface); border: 1px solid var(--border);
     color: var(--text-secondary); border-radius: var(--radius-sm); cursor: pointer;
-    font-size: 12px; transition: var(--transition); font-family: inherit;
+    font-size: 11px; transition: var(--transition); font-family: inherit;
     display: flex; align-items: center; gap: 4px;
 }
-.remix-toolbar button:hover { background: var(--bg-surface-hover); color: var(--text-primary); }
+.plarail-library-actions button:hover { background: var(--accent-secondary); color: #fff; border-color: var(--accent-secondary); }
+
+.plarail-song-pool {
+    display: flex; gap: 8px; flex-wrap: wrap; min-height: 52px;
+    background: var(--bg-surface); border-radius: var(--radius); padding: 8px;
+    border: 1px dashed var(--border);
+}
+.plarail-empty-hint { color: var(--text-muted); font-size: 11px; align-self: center; width: 100%; text-align: center; }
+
+/* Library card - like a train car waiting in depot */
+.plarail-depot-car {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    cursor: grab; user-select: none; transition: transform 0.15s;
+}
+.plarail-depot-car:active { cursor: grabbing; transform: scale(0.95); }
+.plarail-depot-car-body {
+    width: 72px; height: 40px; border-radius: 8px; border: 2px solid;
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    padding: 4px; position: relative; overflow: hidden;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+}
+.plarail-depot-car-body::before,
+.plarail-depot-car-body::after {
+    content: ''; position: absolute; bottom: -4px; width: 10px; height: 8px;
+    background: var(--bg-tertiary); border-radius: 3px 3px 0 0;
+}
+.plarail-depot-car-body::before { left: 8px; }
+.plarail-depot-car-body::after { right: 8px; }
+.plarail-depot-car-name { font-size: 9px; color: var(--text-secondary); text-align: center; max-width: 72px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plarail-depot-car-dur { font-size: 9px; color: var(--text-muted); }
+.plarail-depot-car .car-remove {
+    position: absolute; top: 2px; right: 2px;
+    background: rgba(0,0,0,0.5); border: none; color: rgba(255,255,255,0.6);
+    cursor: pointer; font-size: 9px; border-radius: 50%; width: 14px; height: 14px;
+    display: flex; align-items: center; justify-content: center; padding: 0;
+    opacity: 0; transition: opacity 0.15s;
+}
+.plarail-depot-car:hover .car-remove { opacity: 1; }
+
+/* Rail section */
+.plarail-rail-section { display: flex; flex-direction: column; gap: 6px; flex: 1; }
+.plarail-rail-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; }
+.plarail-rail-actions { display: flex; align-items: center; gap: 8px; }
+.plarail-rail-actions button {
+    padding: 4px 10px; background: var(--accent); border: none;
+    color: #fff; border-radius: var(--radius-sm); cursor: pointer;
+    font-size: 11px; transition: var(--transition); font-family: inherit;
+    display: flex; align-items: center; gap: 4px;
+}
+.plarail-rail-actions button:hover { opacity: 0.85; }
 
 .crossfade-control {
     display: flex; align-items: center; gap: 6px;
-    font-size: 12px; color: var(--text-secondary);
+    font-size: 11px; color: var(--text-secondary);
 }
 .crossfade-control input[type="range"] {
-    width: 100px; height: 4px; -webkit-appearance: none; appearance: none;
+    width: 80px; height: 4px; -webkit-appearance: none; appearance: none;
     background: var(--border); border-radius: 2px;
 }
 .crossfade-control input[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance: none; width: 14px; height: 14px;
+    -webkit-appearance: none; width: 12px; height: 12px;
     border-radius: 50%; background: var(--accent-secondary); cursor: pointer;
 }
+.crossfade-control select {
+    background: var(--bg-surface); border: 1px solid var(--border);
+    color: var(--text-secondary); border-radius: var(--radius-sm);
+    font-size: 11px; padding: 2px 4px; font-family: inherit;
+}
 
-#remix-timeline {
+/* The rail track */
+.plarail-rail-container {
+    position: relative; display: flex; align-items: center;
     background: var(--bg-surface); border-radius: var(--radius);
-    min-height: 60px; padding: 8px; display: flex; gap: 4px; overflow-x: auto;
+    padding: 20px 12px 28px; overflow-x: auto; overflow-y: visible;
+    min-height: 100px; border: 1px solid var(--border);
+    scrollbar-width: thin; scrollbar-color: var(--border) transparent;
 }
-.remix-clip {
-    padding: 8px 16px; background: var(--bg-tertiary);
-    border: 1px solid var(--border-light); border-radius: var(--radius-sm);
-    font-size: 12px; cursor: grab; display: flex;
-    align-items: center; gap: 6px; white-space: nowrap; position: relative;
+.plarail-track-line {
+    position: absolute; bottom: 18px; left: 0; right: 0; height: 6px;
+    background: linear-gradient(90deg, #4a3000 0%, #6b4500 40%, #4a3000 100%);
+    border-top: 1px solid #8a6020; border-bottom: 1px solid #2a1800;
+    pointer-events: none;
 }
-.remix-clip .remix-clip-color { width: 8px; height: 8px; border-radius: 50%; }
-.remix-clip:hover { border-color: var(--accent-secondary); }
-.remix-clip .remove-btn {
-    background: none; border: none; color: var(--text-muted);
-    cursor: pointer; font-size: 12px; padding: 0 2px;
+.plarail-track-line::after {
+    content: ''; position: absolute; top: 50%; left: 0; right: 0;
+    height: 1px; background: repeating-linear-gradient(90deg, transparent 0px, transparent 18px, rgba(255,255,255,0.15) 18px, rgba(255,255,255,0.15) 20px);
+    transform: translateY(-50%);
 }
-.remix-clip .remove-btn:hover { color: var(--accent); }
+.plarail-start-cap, .plarail-end-cap {
+    width: 28px; height: 48px; flex-shrink: 0;
+    background: linear-gradient(135deg, #334, #223);
+    border-radius: 6px; border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-muted); font-size: 10px; z-index: 1;
+}
+.plarail-start-cap { border-radius: 8px 4px 4px 8px; }
+.plarail-end-cap { border-radius: 4px 8px 8px 4px; }
 
-.remix-sequence {
-    background: var(--bg-surface); border-radius: var(--radius); padding: 8px;
-}
-.remix-sequence h4 { font-size: 11px; color: var(--text-secondary); margin-bottom: 6px; }
-#remix-sequence-list { display: flex; gap: 4px; flex-wrap: wrap; min-height: 32px; }
+/* Connected cars on rail */
+.plarail-cars { display: flex; align-items: center; flex: 1; gap: 0; min-height: 70px; z-index: 1; }
 
-.sequence-item {
-    padding: 4px 10px; background: var(--bg-tertiary); border: 1px solid var(--border);
-    border-radius: var(--radius-sm); font-size: 11px; cursor: grab;
-    display: flex; align-items: center; gap: 4px;
+/* Connector joint between cars */
+.plarail-connector {
+    width: 24px; height: 16px; flex-shrink: 0;
+    background: #555; border-radius: 3px;
+    display: flex; align-items: center; justify-content: center;
+    position: relative; z-index: 2; cursor: pointer;
+    border: 1px solid #666; transition: background 0.15s;
 }
-.sequence-item .seq-color { width: 6px; height: 6px; border-radius: 50%; }
-.sequence-item .seq-arrow { color: var(--text-muted); margin: 0 2px; }
-.sequence-item .seq-remove {
-    background: none; border: none; color: var(--text-muted);
-    cursor: pointer; font-size: 10px; padding: 0;
+.plarail-connector:hover { background: var(--accent-secondary); }
+.plarail-connector::before, .plarail-connector::after {
+    content: ''; position: absolute; top: 50%; width: 6px; height: 6px;
+    background: #888; border-radius: 50%; transform: translateY(-50%);
 }
+.plarail-connector::before { left: 2px; }
+.plarail-connector::after { right: 2px; }
+
+/* A car on the rail */
+.plarail-rail-car {
+    display: flex; flex-direction: column; align-items: center;
+    cursor: grab; user-select: none; position: relative; flex-shrink: 0;
+    transition: transform 0.15s;
+}
+.plarail-rail-car:active { cursor: grabbing; }
+.plarail-rail-car.drag-over-left { border-left: 3px solid var(--accent-secondary); }
+.plarail-rail-car.drag-over-right { border-right: 3px solid var(--accent-secondary); }
+.plarail-rail-car-body {
+    height: 56px; min-width: 90px; max-width: 140px; border-radius: 8px; border: 2px solid;
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    padding: 6px 10px; position: relative; overflow: visible;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1);
+}
+/* Wheel bumps */
+.plarail-rail-car-body::before,
+.plarail-rail-car-body::after {
+    content: ''; position: absolute; bottom: -9px; width: 14px; height: 9px;
+    background: #333; border-radius: 0 0 5px 5px; border: 1px solid #555;
+    border-top: none;
+}
+.plarail-rail-car-body::before { left: 10px; }
+.plarail-rail-car-body::after { right: 10px; }
+.plarail-rail-car-name { font-size: 10px; font-weight: 600; text-align: center; max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plarail-rail-car-dur { font-size: 9px; opacity: 0.7; margin-top: 1px; }
+.plarail-rail-car .car-seq-num {
+    position: absolute; top: -8px; left: 50%; transform: translateX(-50%);
+    background: var(--bg-primary); border: 1px solid var(--border);
+    color: var(--text-secondary); font-size: 9px; border-radius: 8px;
+    padding: 0 5px; white-space: nowrap;
+}
+.plarail-rail-car .car-remove-btn {
+    position: absolute; top: -8px; right: -6px;
+    background: var(--accent); border: none; color: #fff;
+    cursor: pointer; font-size: 9px; border-radius: 50%; width: 16px; height: 16px;
+    display: flex; align-items: center; justify-content: center; padding: 0;
+    opacity: 0; transition: opacity 0.15s; z-index: 3;
+}
+.plarail-rail-car:hover .car-remove-btn { opacity: 1; }
+
+/* Drop zone at end of rail */
+.plarail-drop-zone {
+    width: 70px; height: 56px; flex-shrink: 0;
+    border: 2px dashed var(--border); border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-muted); font-size: 18px; cursor: pointer;
+    transition: all 0.15s; margin-left: 4px; z-index: 1;
+}
+.plarail-drop-zone small { font-size: 9px; display: block; text-align: center; line-height: 1.2; }
+.plarail-drop-zone.drag-active { border-color: var(--accent-secondary); color: var(--accent-secondary); background: rgba(74,158,255,0.1); }
+.plarail-drop-inner { text-align: center; line-height: 1.3; }
+.plarail-rail-empty { color: var(--text-muted); font-size: 11px; text-align: center; flex: 1; }
 .sequence-item .seq-remove:hover { color: var(--accent); }
+
+/* ============================================ */
+/* PRO TOOLS PANEL                               */
+/* ============================================ */
+.pro-tools-panel {
+    display: flex; flex-direction: column; gap: 10px;
+    padding: 4px 2px; width: 100%;
+}
+
+.pro-target-row {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    background: var(--bg-surface); border-radius: var(--radius); padding: 8px 12px;
+    border: 1px solid var(--border);
+}
+.pro-target-label { font-size: 11px; color: var(--accent-secondary); font-weight: 600; white-space: nowrap; }
+.pro-target-row select {
+    background: var(--bg-tertiary); border: 1px solid var(--border);
+    color: var(--text-primary); border-radius: var(--radius-sm);
+    font-size: 12px; padding: 3px 8px; font-family: inherit; flex-shrink: 0;
+}
+.pro-target-hint { font-size: 10px; color: var(--text-muted); }
+
+.pro-section-title {
+    font-size: 11px; font-weight: 700; color: var(--text-secondary);
+    display: flex; align-items: center; gap: 5px;
+    border-bottom: 1px solid var(--border); padding-bottom: 4px; margin-top: 4px;
+}
+
+.pro-cards-row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.pro-card {
+    flex: 1; min-width: 220px; max-width: 360px;
+    background: var(--bg-surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 12px; display: flex;
+    flex-direction: column; gap: 8px; transition: border-color 0.15s;
+}
+.pro-card:hover { border-color: var(--accent-secondary); }
+.pro-card-wide { min-width: 100%; max-width: 100%; }
+
+.pro-card-header { display: flex; align-items: flex-start; gap: 10px; }
+.pro-card-icon { font-size: 20px; flex-shrink: 0; line-height: 1; }
+.pro-card-title { font-size: 12px; font-weight: 700; color: var(--text-primary); margin-bottom: 2px; }
+.pro-card-desc { font-size: 10px; color: var(--text-muted); line-height: 1.4; }
+
+.pro-card-controls {
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    font-size: 11px; color: var(--text-secondary);
+}
+.pro-card-controls input[type="range"] {
+    height: 4px; -webkit-appearance: none; appearance: none;
+    background: var(--border); border-radius: 2px; flex: 1; min-width: 60px;
+}
+.pro-card-controls input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 12px; height: 12px;
+    border-radius: 50%; background: var(--accent-secondary); cursor: pointer;
+}
+.pro-card-controls select {
+    background: var(--bg-tertiary); border: 1px solid var(--border);
+    color: var(--text-secondary); border-radius: var(--radius-sm);
+    font-size: 10px; padding: 2px 5px; font-family: inherit;
+}
+
+.preset-chips { display: flex; gap: 4px; flex-wrap: wrap; }
+.preset-chip {
+    padding: 3px 8px; background: var(--bg-tertiary);
+    border: 1px solid var(--border); color: var(--text-secondary);
+    border-radius: 12px; cursor: pointer; font-size: 10px; font-family: inherit;
+    transition: all 0.15s; white-space: nowrap;
+}
+.preset-chip:hover { border-color: var(--accent-secondary); color: var(--accent-secondary); }
+.preset-chip.active { background: var(--accent-secondary); border-color: var(--accent-secondary); color: #fff; }
+
+.pro-apply-btn {
+    width: 100%; padding: 7px; background: var(--accent);
+    border: none; color: #fff; border-radius: var(--radius-sm);
+    cursor: pointer; font-size: 12px; font-weight: 600; font-family: inherit;
+    transition: opacity 0.15s; margin-top: auto;
+}
+.pro-apply-btn:hover { opacity: 0.85; }
+.pro-apply-btn:active { transform: scale(0.98); }
 
 /* ============================================ */
 /* MODALS                                        */
@@ -1864,15 +2103,12 @@ body {
     color: var(--text-muted);
     font-weight: 600;
 }
-/* EQスライダーを縦向きに */
 .eq-slider {
-    -webkit-appearance: slider-vertical;
-    writing-mode: vertical-lr;
-    direction: rtl;
-    width: 24px;
-    height: 70px;
+    width: 100%;
+    height: 4px;
     cursor: pointer;
     accent-color: var(--accent-secondary);
+    margin: 4px 0;
 }
 .eq-slider[data-positive="1"] { accent-color: #f97316; }
 
@@ -1880,7 +2116,7 @@ body {
     font-size: 10px;
     font-weight: 700;
     color: var(--accent-secondary);
-    min-width: 28px;
+    min-width: 32px;
     text-align: center;
 }
 
@@ -2243,28 +2479,32 @@ body {
 /* Tabs */
 .creator-tabs {
     display: flex;
-    gap: 6px;
-    padding: 12px 20px 0;
+    gap: 4px;
+    padding: 10px 12px 0;
     border-bottom: 1px solid var(--border);
     background: var(--bg-secondary);
     flex-shrink: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
 }
+.creator-tabs::-webkit-scrollbar { display: none; }
 .creator-tab {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 10px 16px;
+    gap: 5px;
+    padding: 8px 10px;
     background: none;
     border: none;
     border-bottom: 3px solid transparent;
     color: var(--text-secondary);
     cursor: pointer;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 500;
     transition: color 0.2s, border-color 0.2s;
     white-space: nowrap;
     position: relative;
     bottom: -1px;
+    flex-shrink: 0;
 }
 .creator-tab:hover {
     color: var(--text-primary);

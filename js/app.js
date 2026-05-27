@@ -19,6 +19,7 @@ class StudioFlowDAW {
         this.automation = new AutomationManager();
         this.mastering = new MasteringEngine(this.audioEngine);
         this.remix = new RemixEngine(this.audioEngine);
+        this.proTools = new ProTools(this.audioEngine);
         this.midiConverter = new MIDIConverter(this.audioEngine);
         this.exportManager = new ExportManager(this.audioEngine);
         this.creator = new CreatorEngine(this.audioEngine);
@@ -173,15 +174,29 @@ class StudioFlowDAW {
         this.easyMode = false;
         document.getElementById('easy-mode').classList.add('hidden');
         document.getElementById('advanced-mode').classList.remove('hidden');
+        document.getElementById('btn-back-to-easy').classList.remove('hidden');
         this._updateMixerUI();
         this._updateRuler();
         this.automation.draw();
+        // 非表示中に追加されたクリップの波形を再描画（ダブルRAFでレイアウト確定後に実行）
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+            this.tracks.forEach(track => {
+                track.clips.forEach(clip => {
+                    if (!clip.buffer) return;
+                    const clipEl = document.querySelector(`[data-clip-id="${clip.id}"]`);
+                    if (!clipEl) return;
+                    const canvas = clipEl.querySelector('.clip-waveform');
+                    if (canvas) this.waveform.drawClipWaveform(canvas, clip.buffer, clip.offset || 0, clip.duration);
+                });
+            });
+        }));
     }
 
     _switchToEasy() {
         this.easyMode = true;
         document.getElementById('advanced-mode').classList.add('hidden');
         document.getElementById('easy-mode').classList.remove('hidden');
+        document.getElementById('btn-back-to-easy').classList.add('hidden');
         this._renderEasyCards();
     }
 
@@ -599,8 +614,11 @@ class StudioFlowDAW {
     }
 
     _startLevelMeters(grid) {
-        // 既存のメーターRAFをクリア
-        if (this._meterRAF2) cancelAnimationFrame(this._meterRAF2);
+        // 既存のメーターRAFをすべてクリア（複数回呼ばれても安全）
+        if (!this._meterRAF2List) this._meterRAF2List = [];
+        this._meterRAF2List.forEach(id => cancelAnimationFrame(id));
+        this._meterRAF2List = [];
+        if (this._meterRAF2) { cancelAnimationFrame(this._meterRAF2); this._meterRAF2 = null; }
 
         const updateMeters = () => {
             const bars = grid.querySelectorAll('[data-meter-bar]');
@@ -626,9 +644,13 @@ class StudioFlowDAW {
                 else bar.style.background = '#22c55e';
             });
 
-            this._meterRAF2 = requestAnimationFrame(updateMeters);
+            const id = requestAnimationFrame(updateMeters);
+            this._meterRAF2 = id;
+            this._meterRAF2List.push(id);
         };
-        this._meterRAF2 = requestAnimationFrame(updateMeters);
+        const id = requestAnimationFrame(updateMeters);
+        this._meterRAF2 = id;
+        this._meterRAF2List.push(id);
     }
 
     /** 秒を "0:00.0" 表示に変換 */
@@ -1615,41 +1637,156 @@ class StudioFlowDAW {
     }
 
     _updateRemixUI() {
-        const timeline = document.getElementById('remix-tracks');
-        timeline.innerHTML = '';
-        this.remix.songs.forEach(song => {
-            const clip = document.createElement('div');
-            clip.className = 'remix-clip';
-            clip.innerHTML = `
-                <div class="remix-clip-color" style="background:${escapeHtml(song.color)}"></div>
-                <span>${escapeHtml(song.name)}</span>
-                <small style="color:var(--text-muted)">(${escapeHtml(song.duration.toFixed(1))}s)</small>
-                <button class="remove-btn" data-song-id="${escapeHtml(song.id)}"><i class="fas fa-times"></i></button>
-            `;
-            clip.querySelector('.remove-btn').addEventListener('click', () => { this.remix.removeSong(song.id); this._updateRemixUI(); });
-            clip.addEventListener('click', () => { this.remix.addToSequence(song.id); this._updateRemixSequenceUI(); });
-            timeline.appendChild(clip);
-        });
-        this._updateRemixSequenceUI();
+        // Update song library (depot)
+        const pool = document.getElementById('plarail-song-pool');
+        if (!pool) return;
+        pool.innerHTML = '';
+
+        if (this.remix.songs.length === 0) {
+            pool.innerHTML = '<div class="plarail-empty-hint">← 曲を追加してプラレールみたいにつなごう！</div>';
+        } else {
+            this.remix.songs.forEach(song => {
+                const car = document.createElement('div');
+                car.className = 'plarail-depot-car';
+                car.draggable = true;
+                car.dataset.songId = song.id;
+                const bgAlpha = 'rgba(' + this._hexToRgb(song.color) + ',0.15)';
+                car.innerHTML = `
+                    <div class="plarail-depot-car-body" style="border-color:${escapeHtml(song.color)};background:${bgAlpha}">
+                        <span style="font-size:11px;font-weight:700;color:${escapeHtml(song.color)}">${escapeHtml(song.name.length > 8 ? song.name.slice(0,7)+'…' : song.name)}</span>
+                        <span style="font-size:9px;color:var(--text-muted)">${escapeHtml(this._fmtDur(song.duration))}</span>
+                        <button class="car-remove" title="削除"><i class="fas fa-times"></i></button>
+                    </div>
+                    <span class="plarail-depot-car-name">${escapeHtml(song.name)}</span>
+                `;
+                car.querySelector('.car-remove').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.remix.removeSong(song.id);
+                    this._updateRemixUI();
+                });
+                car.addEventListener('click', () => {
+                    this.remix.addToSequence(song.id);
+                    this._updateRemixRailUI();
+                });
+                car.addEventListener('dragstart', (e) => {
+                    e.dataTransfer.setData('text/plain', JSON.stringify({ type: 'depot', songId: song.id }));
+                    e.dataTransfer.effectAllowed = 'copy';
+                });
+                pool.appendChild(car);
+            });
+        }
+        this._updateRemixRailUI();
     }
 
-    _updateRemixSequenceUI() {
-        const list = document.getElementById('remix-sequence-list');
-        list.innerHTML = '';
-        this.remix.sequence.forEach((seg, i) => {
-            const song = this.remix.getSong(seg.songId);
-            if (!song) return;
-            if (i > 0) {
-                const arrow = document.createElement('span');
-                arrow.innerHTML = '<i class="fas fa-long-arrow-alt-right" style="color:var(--text-muted)"></i>';
-                list.appendChild(arrow);
-            }
-            const item = document.createElement('div');
-            item.className = 'sequence-item';
-            item.innerHTML = `<div class="seq-color" style="background:${escapeHtml(song.color)}"></div><span>${escapeHtml(song.name)}</span><button class="seq-remove" data-index="${i}"><i class="fas fa-times"></i></button>`;
-            item.querySelector('.seq-remove').addEventListener('click', (e) => { e.stopPropagation(); this.remix.removeFromSequence(i); this._updateRemixSequenceUI(); });
-            list.appendChild(item);
-        });
+    _updateRemixRailUI() {
+        const carsEl = document.getElementById('plarail-cars');
+        if (!carsEl) return;
+        carsEl.innerHTML = '';
+
+        if (this.remix.sequence.length === 0) {
+            carsEl.innerHTML = '<div class="plarail-rail-empty">← ライブラリから曲をドラッグ、またはクリックして接続</div>';
+        } else {
+            this.remix.sequence.forEach((seg, i) => {
+                const song = this.remix.getSong(seg.songId);
+                if (!song) return;
+
+                if (i > 0) {
+                    const connector = document.createElement('div');
+                    connector.className = 'plarail-connector';
+                    connector.title = `継ぎ目 ${i}: クロスフェード ${this.remix.crossfadeDuration}秒`;
+                    carsEl.appendChild(connector);
+                }
+
+                const car = document.createElement('div');
+                car.className = 'plarail-rail-car';
+                car.draggable = true;
+                car.dataset.seqIndex = i;
+                const bgAlpha = 'rgba(' + this._hexToRgb(song.color) + ',0.2)';
+                car.innerHTML = `
+                    <div class="plarail-rail-car-body" style="border-color:${escapeHtml(song.color)};background:${bgAlpha}">
+                        <span class="car-seq-num">${i + 1}</span>
+                        <span class="plarail-rail-car-name" style="color:${escapeHtml(song.color)}">${escapeHtml(song.name)}</span>
+                        <span class="plarail-rail-car-dur">${escapeHtml(this._fmtDur(song.duration))}</span>
+                        <button class="car-remove-btn" title="レールから外す"><i class="fas fa-times"></i></button>
+                    </div>
+                `;
+                car.querySelector('.car-remove-btn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.remix.removeFromSequence(i);
+                    this._updateRemixRailUI();
+                });
+                car.addEventListener('dragstart', (e) => {
+                    e.dataTransfer.setData('text/plain', JSON.stringify({ type: 'rail', seqIndex: i }));
+                    e.dataTransfer.effectAllowed = 'move';
+                    car.style.opacity = '0.5';
+                });
+                car.addEventListener('dragend', () => { car.style.opacity = ''; });
+                car.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    car.classList.add('drag-over-left');
+                });
+                car.addEventListener('dragleave', () => { car.classList.remove('drag-over-left'); car.classList.remove('drag-over-right'); });
+                car.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    car.classList.remove('drag-over-left'); car.classList.remove('drag-over-right');
+                    try {
+                        const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+                        if (data.type === 'rail') {
+                            const from = data.seqIndex;
+                            const to = i;
+                            if (from !== to) { this.remix.moveInSequence(from, to); this._updateRemixRailUI(); }
+                        } else if (data.type === 'depot') {
+                            this.remix.sequence.splice(i, 0, { songId: data.songId, startTrim: 0, endTrim: this.remix.getSong(data.songId)?.duration || 0 });
+                            this._updateRemixRailUI();
+                        }
+                    } catch(err) {}
+                });
+                carsEl.appendChild(car);
+            });
+        }
+
+        // Drop zone at end
+        const dropEnd = document.getElementById('plarail-drop-end');
+        if (dropEnd) {
+            dropEnd.ondragover = (e) => { e.preventDefault(); dropEnd.classList.add('drag-active'); };
+            dropEnd.ondragleave = () => dropEnd.classList.remove('drag-active');
+            dropEnd.ondrop = (e) => {
+                e.preventDefault();
+                dropEnd.classList.remove('drag-active');
+                try {
+                    const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+                    if (data.type === 'depot') {
+                        const song = this.remix.getSong(data.songId);
+                        if (song) { this.remix.addToSequence(data.songId); this._updateRemixRailUI(); }
+                    } else if (data.type === 'rail') {
+                        const last = this.remix.sequence.length - 1;
+                        if (data.seqIndex !== last) { this.remix.moveInSequence(data.seqIndex, last); this._updateRemixRailUI(); }
+                    }
+                } catch(err) {}
+            };
+            dropEnd.onclick = () => {
+                if (this.remix.songs.length > 0) {
+                    const song = this.remix.songs[0];
+                    this.remix.addToSequence(song.id);
+                    this._updateRemixRailUI();
+                }
+            };
+        }
+    }
+
+    _updateRemixSequenceUI() { this._updateRemixRailUI(); }
+
+    _fmtDur(sec) {
+        const m = Math.floor(sec / 60);
+        const s = Math.floor(sec % 60);
+        return m > 0 ? `${m}:${String(s).padStart(2,'0')}` : `${s}s`;
+    }
+
+    _hexToRgb(hex) {
+        const r = parseInt(hex.slice(1,3),16);
+        const g = parseInt(hex.slice(3,5),16);
+        const b = parseInt(hex.slice(5,7),16);
+        return `${r},${g},${b}`;
     }
 
     _startMeters() {
@@ -1670,6 +1807,218 @@ class StudioFlowDAW {
             this._meterRAF = requestAnimationFrame(update);
         };
         this._meterRAF = requestAnimationFrame(update);
+    }
+
+    // ============================================
+    // PRO TOOLS
+    // ============================================
+
+    _updateProTargetTrackList() {
+        const sel = document.getElementById('pro-target-track');
+        if (!sel) return;
+        const prev = sel.value;
+        sel.innerHTML = '';
+        this.tracks.forEach(t => {
+            const opt = document.createElement('option');
+            opt.value = t.id;
+            opt.textContent = t.name + (t.clips.length > 0 ? ` (${t.clips.length}クリップ)` : '');
+            sel.appendChild(opt);
+        });
+        if (prev) sel.value = prev;
+    }
+
+    _getProTargetBuffer() {
+        const sel = document.getElementById('pro-target-track');
+        if (!sel || !sel.value) return null;
+        const track = this.tracks.find(t => t.id === sel.value);
+        if (!track || track.clips.length === 0) return null;
+        return track.clips[0]; // first clip
+    }
+
+    _applyBufferToClip(track, clip, newBuffer) {
+        clip.buffer = newBuffer;
+        clip.duration = newBuffer.duration;
+        this._renderClip(track, clip);
+        this._updateCanvasAreaWidths?.();
+        // Refresh easy mode cards if in easy mode
+        if (this.easyMode) this._renderEasyCards?.();
+    }
+
+    _setupProToolsListeners() {
+        // Populate target track on panel open
+        document.querySelector('[data-panel="protools"]')?.addEventListener('click', () => {
+            this._updateProTargetTrackList();
+        });
+
+        // Helper: chip group single-select
+        const setupChips = (containerId) => {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            container.addEventListener('click', (e) => {
+                const chip = e.target.closest('.preset-chip');
+                if (!chip) return;
+                container.querySelectorAll('.preset-chip').forEach(c => c.classList.remove('active'));
+                chip.classList.add('active');
+            });
+        };
+        setupChips('autotune-style-chips');
+        setupChips('vcomp-preset-chips');
+        setupChips('buildup-style-chips');
+        setupChips('segment-count-chips');
+
+        // Range display helpers
+        const rangeDisplay = (id, displayId, fmt) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.addEventListener('input', () => {
+                document.getElementById(displayId).textContent = fmt(parseFloat(el.value));
+            });
+        };
+        const silenceLabels = ['弱', '標準', '強め', '最強', '超高感度'];
+        document.getElementById('silence-threshold')?.addEventListener('input', (e) => {
+            document.getElementById('silence-threshold-val').textContent = silenceLabels[parseInt(e.target.value) - 1];
+        });
+        rangeDisplay('fade-duration',    'fade-duration-val',     v => v.toFixed(1) + '秒');
+        rangeDisplay('autotune-intensity','autotune-intensity-val',v => Math.round(v * 100) + '%');
+        rangeDisplay('sweep-duration',   'sweep-duration-val',    v => v.toFixed(1) + '秒');
+        rangeDisplay('buildup-duration', 'buildup-duration-val',  v => v + '秒');
+
+        // Helper to get clip for processing
+        const getClip = () => {
+            this._updateProTargetTrackList();
+            const sel = document.getElementById('pro-target-track');
+            if (!sel?.value) { this._toast('適用先トラックを選んでください', 'error'); return null; }
+            const track = this.tracks.find(t => t.id === sel.value);
+            if (!track || track.clips.length === 0) { this._toast('選択したトラックにクリップがありません', 'error'); return null; }
+            return { track, clip: track.clips[0] };
+        };
+
+        // 1. 無音カット
+        document.getElementById('btn-trim-silence')?.addEventListener('click', async () => {
+            const tc = getClip(); if (!tc) return;
+            const level = parseInt(document.getElementById('silence-threshold').value);
+            const thresholds = [0.005, 0.015, 0.03, 0.05, 0.08];
+            this._showLoading('無音を検出中...');
+            try {
+                const newBuf = await this.proTools.trimSilence(tc.clip.buffer, thresholds[level - 1]);
+                const trimmed = (tc.clip.buffer.duration - newBuf.duration).toFixed(2);
+                this._applyBufferToClip(tc.track, tc.clip, newBuf);
+                this._hideLoading();
+                this._toast(`無音カット完了 (${trimmed}秒除去)`, 'success');
+            } catch (e) { this._hideLoading(); this._toast('エラー: ' + e.message, 'error'); }
+        });
+
+        // 2. アウトロフェード
+        document.getElementById('btn-outro-fade')?.addEventListener('click', async () => {
+            const tc = getClip(); if (!tc) return;
+            const dur = parseFloat(document.getElementById('fade-duration').value);
+            const type = document.getElementById('fade-type').value;
+            this._showLoading('フェードアウト適用中...');
+            try {
+                const newBuf = await this.proTools.applyOutroFade(tc.clip.buffer, dur, type);
+                this._applyBufferToClip(tc.track, tc.clip, newBuf);
+                this._hideLoading();
+                this._toast(`アウトロフェード適用 (${dur}秒)`, 'success');
+            } catch (e) { this._hideLoading(); this._toast('エラー: ' + e.message, 'error'); }
+        });
+
+        // 3. オートチューン / ケロケロ
+        document.getElementById('btn-autotune')?.addEventListener('click', async () => {
+            const tc = getClip(); if (!tc) return;
+            const style = document.querySelector('#autotune-style-chips .preset-chip.active')?.dataset.val || 'kero';
+            const intensity = parseFloat(document.getElementById('autotune-intensity').value);
+            this._showLoading('ボーカル加工中...');
+            try {
+                const newBuf = await this.proTools.applyAutotune(tc.clip.buffer, { style, intensity });
+                this._applyBufferToClip(tc.track, tc.clip, newBuf);
+                this._hideLoading();
+                this._toast(`ボーカル加工完了 (${style === 'kero' ? 'ケロケロ' : 'スムース'})`, 'success');
+            } catch (e) { this._hideLoading(); this._toast('エラー: ' + e.message, 'error'); }
+        });
+
+        // 4. J-POPコンプ
+        document.getElementById('btn-vocal-comp')?.addEventListener('click', async () => {
+            const tc = getClip(); if (!tc) return;
+            const preset = document.querySelector('#vcomp-preset-chips .preset-chip.active')?.dataset.val || 'medium';
+            this._showLoading('コンプレッサー適用中...');
+            try {
+                const newBuf = await this.proTools.applyVocalComp(tc.clip.buffer, preset);
+                this._applyBufferToClip(tc.track, tc.clip, newBuf);
+                this._hideLoading();
+                this._toast(`J-POPコンプ適用 (${preset})`, 'success');
+            } catch (e) { this._hideLoading(); this._toast('エラー: ' + e.message, 'error'); }
+        });
+
+        // 5. スウィープ挿入
+        document.getElementById('btn-insert-sweep')?.addEventListener('click', async () => {
+            const tc = getClip(); if (!tc) return;
+            const dur = parseFloat(document.getElementById('sweep-duration').value);
+            const pos = parseFloat(document.getElementById('sweep-position').value) || tc.clip.buffer.duration - dur;
+            this._showLoading('スウィープ生成中...');
+            try {
+                const fxBuf = await this.proTools.generateReverseCymbal(dur);
+                const sweepTrack = this.addTrack('スウィープFX');
+                const sweepClip = {
+                    id: 'clip_sweep_' + Date.now(), name: 'スウィープ',
+                    buffer: fxBuf, startTime: Math.max(0, pos - dur), duration: fxBuf.duration, offset: 0
+                };
+                sweepTrack.clips.push(sweepClip);
+                sweepTrack.clips[0].startTime = Math.max(0, pos - dur);
+                this._renderClip(sweepTrack, sweepClip);
+                this._updateTrackHeader(sweepTrack);
+                this._updateMixerUI();
+                this._hideLoading();
+                this._toast('スウィープを新トラックに追加しました', 'success');
+            } catch (e) { this._hideLoading(); this._toast('エラー: ' + e.message, 'error'); }
+        });
+
+        // 6. ビルドアップFX
+        document.getElementById('btn-buildup-fx')?.addEventListener('click', async () => {
+            const style = document.querySelector('#buildup-style-chips .preset-chip.active')?.dataset.val || 'riser';
+            const dur = parseInt(document.getElementById('buildup-duration').value);
+            this._showLoading('ビルドアップFX生成中...');
+            try {
+                const fxBuf = await this.proTools.generateBuildupFX(dur, style);
+                const fxTrack = this.addTrack(style === 'riser' ? 'ライザーFX' : 'ドラムロールFX');
+                const fxClip = {
+                    id: 'clip_fx_' + Date.now(), name: style === 'riser' ? 'ライザー' : 'ドラムロール',
+                    buffer: fxBuf, startTime: 0, duration: fxBuf.duration, offset: 0
+                };
+                fxTrack.clips.push(fxClip);
+                this._renderClip(fxTrack, fxClip);
+                this._updateTrackHeader(fxTrack);
+                this._updateMixerUI();
+                this._hideLoading();
+                this._toast('ビルドアップFXを新トラックに追加しました', 'success');
+            } catch (e) { this._hideLoading(); this._toast('エラー: ' + e.message, 'error'); }
+        });
+
+        // 7. スマート分割
+        document.getElementById('btn-auto-segment')?.addEventListener('click', async () => {
+            const tc = getClip(); if (!tc) return;
+            const n = parseInt(document.querySelector('#segment-count-chips .preset-chip.active')?.dataset.val || '4');
+            this._showLoading('波形を分析中...');
+            try {
+                const segments = this.proTools.autoSegment(tc.clip.buffer, n);
+                const segTrack = this.addTrack(tc.track.name + ' [分割]');
+                const labels = ['Aメロ', 'Bメロ', 'サビ', 'Cメロ', 'ブリッジ', 'アウトロ', 'イントロ', 'ソロ'];
+                segments.forEach((seg, i) => {
+                    const segBuf = this.proTools.extractSegment(tc.clip.buffer, seg.start, seg.end);
+                    if (!segBuf) return;
+                    const segClip = {
+                        id: 'clip_seg_' + Date.now() + '_' + i,
+                        name: labels[i % labels.length],
+                        buffer: segBuf, startTime: seg.start, duration: segBuf.duration, offset: 0
+                    };
+                    segTrack.clips.push(segClip);
+                    this._renderClip(segTrack, segClip);
+                });
+                this._updateTrackHeader(segTrack);
+                this._updateMixerUI();
+                this._hideLoading();
+                this._toast(`${segments.length}セクションに分割しました`, 'success');
+            } catch (e) { this._hideLoading(); this._toast('エラー: ' + e.message, 'error'); }
+        });
     }
 
     // ============================================
@@ -2080,11 +2429,25 @@ class StudioFlowDAW {
         });
         document.getElementById('crossfade-type').addEventListener('change', (e) => { this.remix.crossfadeType = e.target.value; });
         document.getElementById('btn-remix-add').addEventListener('click', () => document.getElementById('file-input-multiple').click());
-        document.getElementById('btn-remix-auto').addEventListener('click', async () => {
+        document.getElementById('btn-remix-auto').addEventListener('click', () => {
             if (this.remix.songs.length < 2) { this._toast('2曲以上追加してください', 'error'); return; }
-            this._showLoading('自動ミックス中...');
+            // Re-sort sequence by energy (low→high) without rendering
+            const analyses = this.remix.songs.map(song => ({
+                song, energy: this.remix._analyzeEnergy(song.buffer)
+            }));
+            analyses.sort((a, b) => a.energy - b.energy);
+            this.remix.sequence = analyses.map(a => ({
+                songId: a.song.id, startTrim: 0, endTrim: a.song.duration
+            }));
+            this._updateRemixRailUI();
+            this._toast('エネルギー順に並び替えました', 'success');
+        });
+
+        document.getElementById('btn-remix-export').addEventListener('click', async () => {
+            if (this.remix.sequence.length === 0) { this._toast('レールに曲を接続してください', 'error'); return; }
+            this._showLoading('レールをレンダリング中...');
             try {
-                const mixedBuffer = await this.remix.autoMix();
+                const mixedBuffer = await this.remix.renderMix();
                 if (mixedBuffer) {
                     const track = this.tracks.find(t => t.clips.length === 0) || this.addTrack('リミックス');
                     track.name = 'リミックス';
@@ -2093,11 +2456,13 @@ class StudioFlowDAW {
                     this._renderClip(track, clip);
                     this._updateTrackHeader(track);
                     this._updateMixerUI();
+                    this._toast('レールをトラックに追加しました！', 'success');
                 }
                 this._hideLoading();
-                this._toast('自動ミックス完了！', 'success');
-            } catch (err) { this._hideLoading(); this._toast('ミックスエラー: ' + err.message, 'error'); }
+            } catch (err) { this._hideLoading(); this._toast('レンダリングエラー: ' + err.message, 'error'); }
         });
+
+        this._setupProToolsListeners();
 
         // Export
         document.getElementById('btn-export').addEventListener('click', () => document.getElementById('modal-export').classList.remove('hidden'));
@@ -2169,17 +2534,33 @@ class StudioFlowDAW {
         const dropZone = document.getElementById('drop-zone');
         let dragCounter = 0;
 
-        app.addEventListener('dragenter', (e) => { e.preventDefault(); dragCounter++; dropZone.classList.remove('hidden'); });
-        app.addEventListener('dragleave', (e) => { e.preventDefault(); dragCounter--; if (dragCounter <= 0) { dropZone.classList.add('hidden'); dragCounter = 0; } });
+        const hideDropZone = () => {
+            dragCounter = 0;
+            dropZone.classList.add('hidden');
+        };
+
+        app.addEventListener('dragenter', (e) => {
+            e.preventDefault();
+            dragCounter++;
+            dropZone.classList.remove('hidden');
+        });
+        app.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dragCounter--;
+            if (dragCounter <= 0) hideDropZone();
+        });
         app.addEventListener('dragover', (e) => e.preventDefault());
         app.addEventListener('drop', async (e) => {
             e.preventDefault();
-            dragCounter = 0;
-            dropZone.classList.add('hidden');
+            hideDropZone();
             const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('audio/'));
             if (files.length > 1) await this.importMultipleForRemix(files);
             else if (files.length === 1) await this.importAndSeparate(files[0]);
         });
+
+        // ドラッグがウィンドウ外で終了した場合にも確実に閉じる
+        document.addEventListener('dragend', hideDropZone);
+        window.addEventListener('focus', hideDropZone);
     }
 
     _setupKeyboardShortcuts() {

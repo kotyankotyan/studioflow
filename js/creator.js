@@ -180,34 +180,44 @@ class CreatorEngine {
      * @returns {Promise<AudioBuffer>}
      */
     async removeVocalMidSide(buffer, reduction = 0.9) {
-        const ctx = this.engine.ctx;
-        const sr = buffer.sampleRate;
-        const len = buffer.length;
-
         // モノラルの場合はそのまま返す
         if (buffer.numberOfChannels < 2) {
             return buffer;
         }
 
-        const out = ctx.createBuffer(2, len, sr);
+        // OfflineAudioContextを使ってメインスレッドをブロックしない
+        const sr = buffer.sampleRate;
+        const len = buffer.length;
+        const offCtx = new OfflineAudioContext(2, len, sr);
+
+        // M/S処理はWeb Audio APIのフィルタでは直接できないため、
+        // サンプル処理をチャンク分割してメインスレッドへの負担を分散する
         const L = buffer.getChannelData(0);
         const R = buffer.getChannelData(1);
-        const outL = out.getChannelData(0);
-        const outR = out.getChannelData(1);
+        const midFactor = 1.0 - reduction;
 
-        for (let i = 0; i < len; i++) {
-            // ミッド（センター）= L+R, サイド（左右差）= L-R
-            const mid  = (L[i] + R[i]) * 0.5;
-            const side = (L[i] - R[i]) * 0.5;
-
-            // ミッドを減衰（ボーカルはセンターに多い）
-            const reducedMid = mid * (1.0 - reduction);
-
-            outL[i] = reducedMid + side;
-            outR[i] = reducedMid - side;
+        // チャンク処理（44100サンプル≒1秒ごとにyield）
+        const outL = new Float32Array(len);
+        const outR = new Float32Array(len);
+        const chunkSize = 44100;
+        for (let i = 0; i < len; i += chunkSize) {
+            const end = Math.min(i + chunkSize, len);
+            for (let j = i; j < end; j++) {
+                const mid  = (L[j] + R[j]) * 0.5;
+                const side = (L[j] - R[j]) * 0.5;
+                const reducedMid = mid * midFactor;
+                outL[j] = reducedMid + side;
+                outR[j] = reducedMid - side;
+            }
+            // UIをブロックしないようにブラウザに制御を返す
+            await new Promise(r => setTimeout(r, 0));
         }
 
-        return this._normalize(out);
+        // OfflineContextでバッファを作成して返す
+        const out = this.engine.ctx.createBuffer(2, len, sr);
+        out.getChannelData(0).set(outL);
+        out.getChannelData(1).set(outR);
+        return await this._normalizeAsync(out);
     }
 
     // ============================================
@@ -461,7 +471,7 @@ class CreatorEngine {
     // ユーティリティ
     // ============================================
 
-    /** ピーク正規化 */
+    /** ピーク正規化（同期版・短いバッファ専用） */
     _normalize(buffer, targetDb = -1.0) {
         const targetAmp = Math.pow(10, targetDb / 20);
         let peak = 0;
@@ -478,6 +488,41 @@ class CreatorEngine {
             const data = buffer.getChannelData(ch);
             for (let i = 0; i < data.length; i++) {
                 data[i] *= gain;
+            }
+        }
+        return buffer;
+    }
+
+    /** ピーク正規化（非同期版・長いバッファ用・メインスレッドをブロックしない） */
+    async _normalizeAsync(buffer, targetDb = -1.0) {
+        const targetAmp = Math.pow(10, targetDb / 20);
+        const chunkSize = 44100;
+        let peak = 0;
+
+        // ピーク検出（チャンク分割）
+        for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
+            const data = buffer.getChannelData(ch);
+            for (let i = 0; i < data.length; i += chunkSize) {
+                const end = Math.min(i + chunkSize, data.length);
+                for (let j = i; j < end; j++) {
+                    peak = Math.max(peak, Math.abs(data[j]));
+                }
+                await new Promise(r => setTimeout(r, 0));
+            }
+        }
+        if (peak === 0 || peak >= targetAmp) return buffer;
+
+        const gain = targetAmp / peak;
+
+        // ゲイン適用（チャンク分割）
+        for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
+            const data = buffer.getChannelData(ch);
+            for (let i = 0; i < data.length; i += chunkSize) {
+                const end = Math.min(i + chunkSize, data.length);
+                for (let j = i; j < end; j++) {
+                    data[j] *= gain;
+                }
+                await new Promise(r => setTimeout(r, 0));
             }
         }
         return buffer;
