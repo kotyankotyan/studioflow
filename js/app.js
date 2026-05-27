@@ -234,6 +234,9 @@ class StudioFlowDAW {
                         <span class="part-name">${cleanName}</span>
                     </div>
                     <div class="part-card-actions">
+                        <button class="part-btn btn-part-preview" data-track-id="${track.id}" title="5秒だけ試聴">
+                            <i class="fas fa-play"></i>
+                        </button>
                         <button class="part-btn btn-part-solo" data-track-id="${track.id}" title="このパートだけ聴く">
                             <i class="fas fa-headphones"></i>
                         </button>
@@ -244,6 +247,10 @@ class StudioFlowDAW {
                 </div>
                 <div class="part-waveform">
                     <canvas data-track-id="${track.id}"></canvas>
+                    <div class="part-level-meter" data-meter="${track.id}">
+                        <div class="meter-bar" data-meter-bar="${track.id}"></div>
+                        <span class="meter-label">音量</span>
+                    </div>
                 </div>
                 <div class="part-controls">
                     <div class="part-slider-group">
@@ -261,6 +268,26 @@ class StudioFlowDAW {
                         <span class="part-slider-label"><i class="fas fa-arrows-alt-h"></i> 左右</span>
                         <input type="range" class="part-slider pan-slider" data-track-id="${track.id}" data-param="pan" min="-1" max="1" step="0.01" value="${track.pan}">
                         <span class="part-slider-value">${track.pan === 0 ? '中央' : (track.pan < 0 ? 'L' + Math.round(-track.pan * 100) : 'R' + Math.round(track.pan * 100))}</span>
+                    </div>
+                    <div class="part-eq-section">
+                        <div class="part-eq-label"><i class="fas fa-sliders-h"></i> 音質調整（EQ）</div>
+                        <div class="part-eq-grid">
+                            <div class="eq-band">
+                                <span class="eq-band-label">低音</span>
+                                <input type="range" class="eq-slider" data-track-id="${track.id}" data-eq="low" min="-12" max="12" step="1" value="${track._eqLow || 0}">
+                                <span class="eq-band-val" data-eq-val="${track.id}-low">${track._eqLow ? (track._eqLow > 0 ? '+' : '') + track._eqLow + 'dB' : '±0'}</span>
+                            </div>
+                            <div class="eq-band">
+                                <span class="eq-band-label">中音</span>
+                                <input type="range" class="eq-slider" data-track-id="${track.id}" data-eq="mid" min="-12" max="12" step="1" value="${track._eqMid || 0}">
+                                <span class="eq-band-val" data-eq-val="${track.id}-mid">${track._eqMid ? (track._eqMid > 0 ? '+' : '') + track._eqMid + 'dB' : '±0'}</span>
+                            </div>
+                            <div class="eq-band">
+                                <span class="eq-band-label">高音</span>
+                                <input type="range" class="eq-slider" data-track-id="${track.id}" data-eq="high" min="-12" max="12" step="1" value="${track._eqHigh || 0}">
+                                <span class="eq-band-val" data-eq-val="${track.id}-high">${track._eqHigh ? (track._eqHigh > 0 ? '+' : '') + track._eqHigh + 'dB' : '±0'}</span>
+                            </div>
+                        </div>
                     </div>
                     ` : `
                     <p style="font-size:11px;color:var(--text-muted);font-style:italic;padding:4px 0;">
@@ -366,12 +393,21 @@ class StudioFlowDAW {
             });
         });
 
-        // Reverb sliders (simplified - stores value for later processing)
+        // Reverb sliders — 実際のリバーブノードに接続 ✅
         grid.querySelectorAll('[data-param="reverb"]').forEach(slider => {
             slider.addEventListener('input', (e) => {
                 const track = this.tracks.find(t => t.id === e.target.dataset.trackId);
                 if (!track) return;
+                const wet = parseInt(e.target.value) / 100; // 0〜1
                 track._easyReverb = parseInt(e.target.value);
+
+                // リバーブノードが存在する場合のみ適用
+                if (track.nodes.reverbWet) {
+                    const now = this.audioEngine.ctx.currentTime;
+                    // wet増やしたぶんdryを減らしてトータル音量を保つ
+                    track.nodes.reverbWet.gain.setValueAtTime(wet * 0.85, now);
+                    track.nodes.reverbDry.gain.setValueAtTime(1.0 - wet * 0.5, now);
+                }
                 e.target.closest('.part-slider-group').querySelector('.part-slider-value').textContent = e.target.value + '%';
             });
         });
@@ -403,8 +439,116 @@ class StudioFlowDAW {
             });
         });
 
+        // EQスライダー
+        grid.querySelectorAll('.eq-slider').forEach(slider => {
+            slider.addEventListener('input', (e) => {
+                const track = this.tracks.find(t => t.id === e.target.dataset.trackId);
+                if (!track) return;
+                const band = e.target.dataset.eq; // low | mid | high
+                const val  = parseInt(e.target.value);
+                const now  = this.audioEngine.ctx.currentTime;
+
+                if (band === 'low' && track.nodes.eqLow) {
+                    track._eqLow = val;
+                    track.nodes.eqLow.gain.setValueAtTime(val, now);
+                } else if (band === 'mid' && track.nodes.eqMid) {
+                    track._eqMid = val;
+                    track.nodes.eqMid.gain.setValueAtTime(val, now);
+                } else if (band === 'high' && track.nodes.eqHigh) {
+                    track._eqHigh = val;
+                    track.nodes.eqHigh.gain.setValueAtTime(val, now);
+                }
+
+                const lbl = grid.querySelector(`[data-eq-val="${track.id}-${band}"]`);
+                if (lbl) lbl.textContent = val === 0 ? '±0' : (val > 0 ? '+' : '') + val + 'dB';
+
+                // 値に応じてスライダーの色を変える
+                const pct = ((val + 12) / 24 * 100).toFixed(0);
+                e.target.style.setProperty('--eq-pct', pct + '%');
+                e.target.dataset.positive = val > 0 ? '1' : '0';
+            });
+        });
+
+        // 5秒試聴ボタン
+        grid.querySelectorAll('.btn-part-preview').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const track = this.tracks.find(t => t.id === btn.dataset.trackId);
+                if (!track?.clips[0]?.buffer) return;
+
+                await this.audioEngine.resume();
+
+                // 既存の試聴を停止
+                if (this._previewSource) {
+                    try { this._previewSource.stop(); } catch(e) {}
+                    this._previewSource = null;
+                }
+
+                btn.innerHTML = '<i class="fas fa-stop"></i>';
+                btn.classList.add('previewing');
+
+                const ctx = this.audioEngine.ctx;
+                const src = ctx.createBufferSource();
+                src.buffer = track.clips[0].buffer;
+                src.connect(track.nodes.gainNode);
+
+                // 曲の1/4あたりから5秒再生（サビに近い部分）
+                const startOffset = Math.min(track.clips[0].buffer.duration * 0.25, 30);
+                src.start(ctx.currentTime, startOffset, 5);
+                this._previewSource = src;
+
+                src.onended = () => {
+                    btn.innerHTML = '<i class="fas fa-play"></i>';
+                    btn.classList.remove('previewing');
+                    this._previewSource = null;
+                };
+
+                // 5秒後に強制停止フォールバック
+                setTimeout(() => {
+                    if (this._previewSource === src) {
+                        try { src.stop(); } catch(e) {}
+                    }
+                }, 5500);
+            });
+        });
+
+        // レベルメーターのアニメーション
+        this._startLevelMeters(grid);
+
         // 編集パネルのイベント
         this._setupEditPanelEvents(grid);
+    }
+
+    _startLevelMeters(grid) {
+        // 既存のメーターRAFをクリア
+        if (this._meterRAF2) cancelAnimationFrame(this._meterRAF2);
+
+        const updateMeters = () => {
+            const bars = grid.querySelectorAll('[data-meter-bar]');
+            bars.forEach(bar => {
+                const tid = bar.dataset.meterBar;
+                const track = this.tracks.find(t => t.id === tid);
+                if (!track?.nodes?.analyser) return;
+
+                const data = new Uint8Array(track.nodes.analyser.frequencyBinCount);
+                track.nodes.analyser.getByteFrequencyData(data);
+
+                // RMSに近い平均を計算
+                let sum = 0;
+                for (let i = 0; i < data.length; i++) sum += data[i];
+                const avg = sum / data.length / 255;
+
+                const pct = Math.min(100, avg * 300); // 視認性のため感度を上げる
+                bar.style.width = pct.toFixed(1) + '%';
+
+                // 音量に応じて色を変える
+                if (pct > 70) bar.style.background = '#e94560';
+                else if (pct > 40) bar.style.background = '#eab308';
+                else bar.style.background = '#22c55e';
+            });
+
+            this._meterRAF2 = requestAnimationFrame(updateMeters);
+        };
+        this._meterRAF2 = requestAnimationFrame(updateMeters);
     }
 
     /** 秒を "0:00.0" 表示に変換 */

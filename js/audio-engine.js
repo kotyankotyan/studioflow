@@ -91,15 +91,68 @@ class AudioEngine {
 
     createTrackNodes() {
         const gainNode = this.ctx.createGain();
-        const panNode = this.ctx.createStereoPanner();
+        const panNode  = this.ctx.createStereoPanner();
         const analyser = this.ctx.createAnalyser();
-        analyser.fftSize = 256;
+        analyser.fftSize = 1024; // 高解像度でレベルメーター精度向上
 
+        // ── 3バンドEQ ──────────────────────────────
+        const eqLow  = this.ctx.createBiquadFilter();
+        eqLow.type  = 'lowshelf';
+        eqLow.frequency.value = 200;
+        eqLow.gain.value = 0;
+
+        const eqMid  = this.ctx.createBiquadFilter();
+        eqMid.type  = 'peaking';
+        eqMid.frequency.value = 1500;
+        eqMid.Q.value = 1.2;
+        eqMid.gain.value = 0;
+
+        const eqHigh = this.ctx.createBiquadFilter();
+        eqHigh.type = 'highshelf';
+        eqHigh.frequency.value = 5000;
+        eqHigh.gain.value = 0;
+
+        // ── リバーブ（dry/wet ミックス） ──────────────
+        const reverbDry = this.ctx.createGain();
+        const reverbWet = this.ctx.createGain();
+        reverbDry.gain.value = 1.0;
+        reverbWet.gain.value = 0.0;   // 初期はリバーブなし
+
+        const convolver = this.ctx.createConvolver();
+        const irLen = Math.floor(this.ctx.sampleRate * 2.5); // 2.5秒IR
+        const ir = this.ctx.createBuffer(2, irLen, this.ctx.sampleRate);
+        for (let ch = 0; ch < 2; ch++) {
+            const d = ir.getChannelData(ch);
+            for (let i = 0; i < irLen; i++) {
+                // 指数減衰するランダムノイズ（室内残響シミュレーション）
+                d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / irLen, 2.8);
+            }
+        }
+        convolver.buffer = ir;
+
+        const reverbMix = this.ctx.createGain(); // wet+dry合流点
+        reverbMix.gain.value = 1.0;
+
+        // ── グラフ接続 ──────────────────────────────
+        // source → gainNode → panNode → eqLow → eqMid → eqHigh
+        //       ↳ reverbDry → reverbMix → analyser → masterCompressor
+        //       ↳ convolver → reverbWet ↗
         gainNode.connect(panNode);
-        panNode.connect(analyser);
+        panNode.connect(eqLow);
+        eqLow.connect(eqMid);
+        eqMid.connect(eqHigh);
+
+        eqHigh.connect(reverbDry);
+        eqHigh.connect(convolver);
+
+        reverbDry.connect(reverbMix);
+        convolver.connect(reverbWet);
+        reverbWet.connect(reverbMix);
+
+        reverbMix.connect(analyser);
         analyser.connect(this.masterCompressor);
 
-        return { gainNode, panNode, analyser };
+        return { gainNode, panNode, analyser, eqLow, eqMid, eqHigh, reverbWet, reverbDry, convolver };
     }
 
     getCurrentTime() {

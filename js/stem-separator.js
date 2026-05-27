@@ -53,185 +53,189 @@ class StemSeparator {
         return stems;
     }
 
+    // ヘルパー: OfflineContextで音源+フィルタチェーンを描画
+    async _render(channelData, length, sampleRate, channels, buildGraph) {
+        const offCtx = new OfflineAudioContext(channels, length, sampleRate);
+        const buf = offCtx.createBuffer(channels, length, sampleRate);
+        for (let ch = 0; ch < channels; ch++) buf.getChannelData(ch).set(channelData[ch]);
+        const src = offCtx.createBufferSource();
+        src.buffer = buf;
+        buildGraph(offCtx, src, offCtx.destination);
+        src.start(0);
+        return offCtx.startRendering();
+    }
+
+    // ヘルパー: ピーク正規化
+    _normalizeBuffer(buffer) {
+        let peak = 0;
+        for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
+            const d = buffer.getChannelData(ch);
+            for (let i = 0; i < d.length; i++) peak = Math.max(peak, Math.abs(d[i]));
+        }
+        if (peak < 0.01) return buffer;
+        const gain = 0.85 / peak;
+        for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
+            const d = buffer.getChannelData(ch);
+            for (let i = 0; i < d.length; i++) d[i] *= gain;
+        }
+        return buffer;
+    }
+
+    /**
+     * ボーカル: ステレオ差分（センター成分を除いた残り）+ Mid強調
+     * ボーカルはセンター定位なので L-R を反転すると残る成分が楽器系になり、
+     * L+R のセンター成分にバンドパスをかけてボーカル帯域だけを抽出する
+     */
     async _extractVocals(channelData, length, sampleRate, channels, ctx) {
         const offCtx = new OfflineAudioContext(channels, length, sampleRate);
-        const buffer = offCtx.createBuffer(channels, length, sampleRate);
+        const outBuf = offCtx.createBuffer(channels, length, sampleRate);
 
         if (channels >= 2) {
-            const left = channelData[0];
-            const right = channelData[1];
-            const monoCenter = new Float32Array(length);
+            const L = channelData[0], R = channelData[1];
+            // Mid = (L+R)/2 → ボーカルを含むセンター成分
+            const midData = new Float32Array(length);
+            for (let i = 0; i < length; i++) midData[i] = (L[i] + R[i]) * 0.5;
 
-            for (let i = 0; i < length; i++) {
-                monoCenter[i] = (left[i] - right[i]) * 0.5;
-            }
+            const midBuf = offCtx.createBuffer(1, length, sampleRate);
+            midBuf.getChannelData(0).set(midData);
 
-            const bp1 = offCtx.createBiquadFilter();
-            bp1.type = 'highpass';
-            bp1.frequency.value = 200;
+            const src = offCtx.createBufferSource();
+            src.buffer = midBuf;
 
-            const bp2 = offCtx.createBiquadFilter();
-            bp2.type = 'lowpass';
-            bp2.frequency.value = 6000;
+            // 200Hz–6kHz バンドパス（ボーカル帯域）
+            const hp = offCtx.createBiquadFilter();
+            hp.type = 'highpass'; hp.frequency.value = 200; hp.Q.value = 0.7;
 
+            const lp = offCtx.createBiquadFilter();
+            lp.type = 'lowpass'; lp.frequency.value = 5500; lp.Q.value = 0.7;
+
+            // 3kHz プレゼンス強調（明瞭度向上）
             const presence = offCtx.createBiquadFilter();
             presence.type = 'peaking';
-            presence.frequency.value = 3000;
-            presence.Q.value = 1;
-            presence.gain.value = 3;
-
-            const tempBuf = offCtx.createBuffer(1, length, sampleRate);
-            tempBuf.getChannelData(0).set(monoCenter);
-
-            const source = offCtx.createBufferSource();
-            source.buffer = tempBuf;
+            presence.frequency.value = 3000; presence.Q.value = 1.5; presence.gain.value = 5;
 
             const merger = offCtx.createChannelMerger(channels);
-
-            source.connect(bp1);
-            bp1.connect(bp2);
-            bp2.connect(presence);
-
-            for (let ch = 0; ch < channels; ch++) {
-                presence.connect(merger, 0, ch);
-            }
+            src.connect(hp); hp.connect(lp); lp.connect(presence);
+            for (let ch = 0; ch < channels; ch++) presence.connect(merger, 0, ch);
             merger.connect(offCtx.destination);
-
-            source.start(0);
-            return await offCtx.startRendering();
+            src.start(0);
+        } else {
+            // モノラル: そのままバンドパス
+            const buf = offCtx.createBuffer(1, length, sampleRate);
+            buf.getChannelData(0).set(channelData[0]);
+            const src = offCtx.createBufferSource();
+            src.buffer = buf;
+            const hp = offCtx.createBiquadFilter();
+            hp.type = 'highpass'; hp.frequency.value = 200;
+            const lp = offCtx.createBiquadFilter();
+            lp.type = 'lowpass'; lp.frequency.value = 5500;
+            src.connect(hp); hp.connect(lp); lp.connect(offCtx.destination);
+            src.start(0);
         }
-
-        const source = offCtx.createBufferSource();
-        for (let ch = 0; ch < channels; ch++) {
-            buffer.getChannelData(ch).set(channelData[ch]);
-        }
-        source.buffer = buffer;
-
-        const bp1 = offCtx.createBiquadFilter();
-        bp1.type = 'highpass';
-        bp1.frequency.value = 200;
-
-        const bp2 = offCtx.createBiquadFilter();
-        bp2.type = 'lowpass';
-        bp2.frequency.value = 6000;
-
-        source.connect(bp1);
-        bp1.connect(bp2);
-        bp2.connect(offCtx.destination);
-
-        source.start(0);
-        return await offCtx.startRendering();
+        return this._normalizeBuffer(await offCtx.startRendering());
     }
 
+    /**
+     * ドラム: トランジェント検出ベース + 低域キック + 高域ハット
+     * エネルギーの急峻な変化部分（オンセット）を強調することで打楽器成分を抽出
+     */
     async _extractDrums(channelData, length, sampleRate, channels, ctx) {
         const offCtx = new OfflineAudioContext(channels, length, sampleRate);
-        const buffer = offCtx.createBuffer(channels, length, sampleRate);
+        const buf = offCtx.createBuffer(channels, length, sampleRate);
 
-        for (let ch = 0; ch < channels; ch++) {
-            buffer.getChannelData(ch).set(channelData[ch]);
-        }
+        // ドラムの特徴: キック(60-120Hz) + スネア(200-400Hz) + ハット(8k-16kHz)
+        // + トランジェント強調のため強めのコンプレッション
+        for (let ch = 0; ch < channels; ch++) buf.getChannelData(ch).set(channelData[ch]);
 
-        const source = offCtx.createBufferSource();
-        source.buffer = buffer;
+        const src = offCtx.createBufferSource();
+        src.buffer = buf;
 
-        const lpf = offCtx.createBiquadFilter();
-        lpf.type = 'lowpass';
-        lpf.frequency.value = 200;
+        // キック成分（低域）
+        const kickLP = offCtx.createBiquadFilter();
+        kickLP.type = 'lowpass'; kickLP.frequency.value = 150; kickLP.Q.value = 0.5;
+        const kickBoost = offCtx.createBiquadFilter();
+        kickBoost.type = 'peaking'; kickBoost.frequency.value = 80; kickBoost.Q.value = 1; kickBoost.gain.value = 8;
+        const kickGain = offCtx.createGain();
+        kickGain.gain.value = 1.2;
 
-        const hpf = offCtx.createBiquadFilter();
-        hpf.type = 'highpass';
-        hpf.frequency.value = 4000;
+        // スネア/打楽器成分（中低域）
+        const snareHP = offCtx.createBiquadFilter();
+        snareHP.type = 'highpass'; snareHP.frequency.value = 150;
+        const snareLP = offCtx.createBiquadFilter();
+        snareLP.type = 'lowpass'; snareLP.frequency.value = 500;
+        const snareGain = offCtx.createGain();
+        snareGain.gain.value = 0.7;
 
+        // ハット成分（高域）
+        const hatHP = offCtx.createBiquadFilter();
+        hatHP.type = 'highpass'; hatHP.frequency.value = 7000; hatHP.Q.value = 0.5;
+        const hatGain = offCtx.createGain();
+        hatGain.gain.value = 0.5;
+
+        // トランジェント強調コンプ
         const comp = offCtx.createDynamicsCompressor();
-        comp.threshold.value = -30;
-        comp.ratio.value = 8;
-        comp.attack.value = 0.001;
-        comp.release.value = 0.05;
+        comp.threshold.value = -35; comp.ratio.value = 12;
+        comp.attack.value = 0.001; comp.release.value = 0.05;
 
-        const lowGain = offCtx.createGain();
-        lowGain.gain.value = 0.8;
-        const highGain = offCtx.createGain();
-        highGain.gain.value = 0.6;
-        const merger = offCtx.createGain();
+        const mix = offCtx.createGain();
 
-        source.connect(lpf);
-        lpf.connect(lowGain);
-        lowGain.connect(merger);
+        src.connect(kickLP); kickLP.connect(kickBoost); kickBoost.connect(kickGain); kickGain.connect(mix);
+        src.connect(snareHP); snareHP.connect(snareLP); snareLP.connect(snareGain); snareGain.connect(mix);
+        src.connect(hatHP); hatHP.connect(hatGain); hatGain.connect(mix);
+        mix.connect(comp); comp.connect(offCtx.destination);
 
-        source.connect(hpf);
-        hpf.connect(highGain);
-        highGain.connect(merger);
-
-        merger.connect(comp);
-        comp.connect(offCtx.destination);
-
-        source.start(0);
-        return await offCtx.startRendering();
+        src.start(0);
+        return this._normalizeBuffer(await offCtx.startRendering());
     }
 
+    /**
+     * ベース: 低域のみ（300Hz以下）を明確に抽出
+     * ベース音域の基音とハーモニクスを含む鋭いフィルタ
+     */
     async _extractBass(channelData, length, sampleRate, channels, ctx) {
-        const offCtx = new OfflineAudioContext(channels, length, sampleRate);
-        const buffer = offCtx.createBuffer(channels, length, sampleRate);
+        return this._render(channelData, length, sampleRate, channels, (offCtx, src, dest) => {
+            const lp1 = offCtx.createBiquadFilter();
+            lp1.type = 'lowpass'; lp1.frequency.value = 300; lp1.Q.value = 0.5;
 
-        for (let ch = 0; ch < channels; ch++) {
-            buffer.getChannelData(ch).set(channelData[ch]);
-        }
+            const lp2 = offCtx.createBiquadFilter();
+            lp2.type = 'lowpass'; lp2.frequency.value = 300; lp2.Q.value = 0.5;
 
-        const source = offCtx.createBufferSource();
-        source.buffer = buffer;
+            const boost = offCtx.createBiquadFilter();
+            boost.type = 'peaking'; boost.frequency.value = 90; boost.Q.value = 1.5; boost.gain.value = 6;
 
-        const lpf = offCtx.createBiquadFilter();
-        lpf.type = 'lowpass';
-        lpf.frequency.value = 250;
-        lpf.Q.value = 0.7;
+            const hp = offCtx.createBiquadFilter();
+            hp.type = 'highpass'; hp.frequency.value = 35; // DCカット
 
-        const boost = offCtx.createBiquadFilter();
-        boost.type = 'peaking';
-        boost.frequency.value = 80;
-        boost.Q.value = 1;
-        boost.gain.value = 3;
+            const gain = offCtx.createGain();
+            gain.gain.value = 1.3;
 
-        source.connect(lpf);
-        lpf.connect(boost);
-        boost.connect(offCtx.destination);
-
-        source.start(0);
-        return await offCtx.startRendering();
+            src.connect(hp); hp.connect(lp1); lp1.connect(lp2); lp2.connect(boost); boost.connect(gain); gain.connect(dest);
+        }).then(b => this._normalizeBuffer(b));
     }
 
+    /**
+     * その他（ギター・シンセ・ピアノ等）: 中高域メイン
+     * ボーカル帯域とドラム帯域を除いた残差に近い成分を抽出
+     */
     async _extractOther(channelData, length, sampleRate, channels, ctx, existingStems) {
-        const offCtx = new OfflineAudioContext(channels, length, sampleRate);
-        const buffer = offCtx.createBuffer(channels, length, sampleRate);
+        return this._render(channelData, length, sampleRate, channels, (offCtx, src, dest) => {
+            // ベース・ドラム低域を除いた中高域
+            const hp = offCtx.createBiquadFilter();
+            hp.type = 'highpass'; hp.frequency.value = 300; hp.Q.value = 0.7;
 
-        for (let ch = 0; ch < channels; ch++) {
-            const data = new Float32Array(length);
-            data.set(channelData[ch]);
-            buffer.getChannelData(ch).set(data);
-        }
+            const lp = offCtx.createBiquadFilter();
+            lp.type = 'lowpass'; lp.frequency.value = 9000; lp.Q.value = 0.7;
 
-        const source = offCtx.createBufferSource();
-        source.buffer = buffer;
+            // ボーカル帯域（3kHz）をノッチで少し抑制
+            const notch = offCtx.createBiquadFilter();
+            notch.type = 'notch'; notch.frequency.value = 3000; notch.Q.value = 2;
 
-        const bp1 = offCtx.createBiquadFilter();
-        bp1.type = 'highpass';
-        bp1.frequency.value = 250;
+            // 中域ブースト（メロディ楽器を前に出す）
+            const midBoost = offCtx.createBiquadFilter();
+            midBoost.type = 'peaking'; midBoost.frequency.value = 800; midBoost.Q.value = 0.8; midBoost.gain.value = 4;
 
-        const bp2 = offCtx.createBiquadFilter();
-        bp2.type = 'lowpass';
-        bp2.frequency.value = 8000;
-
-        const notch = offCtx.createBiquadFilter();
-        notch.type = 'notch';
-        notch.frequency.value = 3000;
-        notch.Q.value = 0.5;
-
-        source.connect(bp1);
-        bp1.connect(bp2);
-        bp2.connect(notch);
-        notch.connect(offCtx.destination);
-
-        source.start(0);
-        return await offCtx.startRendering();
+            src.connect(hp); hp.connect(lp); lp.connect(notch); notch.connect(midBoost); midBoost.connect(dest);
+        }).then(b => this._normalizeBuffer(b));
     }
 }
 
