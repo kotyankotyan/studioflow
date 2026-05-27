@@ -165,9 +165,10 @@
                     </div>
                     <div class="tool-section">
                         <h3>AI機能</h3>
-                        <button id="btn-stem-split" title="選択トラックを再分離"><i class="fas fa-project-diagram"></i><span>分離</span></button>
-                        <button id="btn-midi-convert" title="MIDI変換"><i class="fas fa-keyboard"></i><span>MIDI</span></button>
-                        <button id="btn-vocal-enhance" title="ボーカル強化"><i class="fas fa-microphone"></i><span>強化</span></button>
+                        <button id="btn-stem-split" class="ai-feature-btn" title="音源分離 — クリックで説明を見る" data-ai="stem"><i class="fas fa-project-diagram"></i><span>分離</span></button>
+                        <button id="btn-midi-convert" class="ai-feature-btn" title="MIDI変換 — クリックで説明を見る" data-ai="midi"><i class="fas fa-keyboard"></i><span>MIDI</span></button>
+                        <button id="btn-vocal-enhance" class="ai-feature-btn" title="ボーカル強化 — クリックで説明を見る" data-ai="vocal"><i class="fas fa-microphone"></i><span>強化</span></button>
+                        <button id="btn-ai-help" class="tool-btn ai-help-btn" title="AI機能について"><i class="fas fa-question-circle"></i><span>説明</span></button>
                     </div>
                 </aside>
 
@@ -787,6 +788,19 @@
                             <i class="fas fa-sign-out-alt"></i> ログアウト
                         </button>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- AI機能説明モーダル -->
+        <div id="modal-ai-info" class="modal hidden">
+            <div class="modal-content ai-info-modal">
+                <div class="modal-header">
+                    <h2 id="ai-info-title"><i class="fas fa-robot"></i> AI機能</h2>
+                    <button class="modal-close">&times;</button>
+                </div>
+                <div class="modal-body" id="ai-info-body">
+                    <!-- 動的に挿入 -->
                 </div>
             </div>
         </div>

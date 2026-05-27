@@ -289,10 +289,14 @@ class StudioFlowDAW {
                         <span>▶ボタンで原曲と今の音を聴き比べできます</span>
                     </div>
                     ` : `
-                    <div class="part-slider-group">
+                    <div class="part-slider-group vol-slider-group">
                         <span class="part-slider-label"><i class="fas fa-volume-up"></i> 音量</span>
-                        <input type="range" class="part-slider volume-slider" data-track-id="${track.id}" data-param="volume" min="0" max="1.5" step="0.01" value="${track.volume}">
-                        <span class="part-slider-value">${Math.round(track.volume * 100)}%</span>
+                        <div class="vol-stepper-wrap">
+                            <button class="vol-step-btn" data-track-id="${track.id}" data-step="-0.1" title="音量を下げる">－</button>
+                            <input type="range" class="part-slider volume-slider" data-track-id="${track.id}" data-param="volume" min="0" max="1.5" step="0.05" value="${track.volume}">
+                            <button class="vol-step-btn" data-track-id="${track.id}" data-step="0.1" title="音量を上げる">＋</button>
+                        </div>
+                        <span class="part-slider-value vol-val-label">${Math.round(track.volume * 100)}%</span>
                     </div>
                     ${isAIMix ? `
                     <div class="part-slider-group ms-vocal-group">
@@ -406,16 +410,36 @@ class StudioFlowDAW {
     }
 
     _setupEasyCardEvents(grid) {
+        // 音量: スライダー＋ステップボタン共通の更新ヘルパー
+        const _applyVolume = (track, newVol, group) => {
+            track.volume = Math.max(0, Math.min(1.5, newVol));
+            if (!track.muted) {
+                track.nodes.gainNode.gain.setValueAtTime(track.volume, this.audioEngine.ctx.currentTime);
+            }
+            const slider = group.querySelector('[data-param="volume"]');
+            const label  = group.querySelector('.vol-val-label') || group.querySelector('.part-slider-value');
+            if (slider) slider.value = track.volume;
+            if (label)  label.textContent = Math.round(track.volume * 100) + '%';
+            this._updateChangeBadge(track);
+        };
+
         // Volume sliders
         grid.querySelectorAll('[data-param="volume"]').forEach(slider => {
             slider.addEventListener('input', (e) => {
                 const track = this.tracks.find(t => t.id === e.target.dataset.trackId);
                 if (!track) return;
-                track.volume = parseFloat(e.target.value);
-                if (!track.muted) {
-                    track.nodes.gainNode.gain.setValueAtTime(track.volume, this.audioEngine.ctx.currentTime);
-                }
-                e.target.closest('.part-slider-group').querySelector('.part-slider-value').textContent = Math.round(track.volume * 100) + '%';
+                _applyVolume(track, parseFloat(e.target.value), e.target.closest('.part-slider-group'));
+            });
+        });
+
+        // ±ステップボタン
+        grid.querySelectorAll('.vol-step-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const track = this.tracks.find(t => t.id === btn.dataset.trackId);
+                if (!track) return;
+                const step = parseFloat(btn.dataset.step);
+                _applyVolume(track, track.volume + step, btn.closest('.part-slider-group'));
             });
         });
 
@@ -1654,16 +1678,25 @@ class StudioFlowDAW {
 
     _setupEventListeners() {
         // Transport
-        document.getElementById('btn-play').addEventListener('click', () => {
+        const playBtn = document.getElementById('btn-play');
+        const _setPlayIcon  = () => { playBtn.innerHTML = '<i class="fas fa-play"></i>';  playBtn.classList.remove('active'); playBtn.title = '再生'; };
+        const _setPauseIcon = () => { playBtn.innerHTML = '<i class="fas fa-pause"></i>'; playBtn.classList.add('active');    playBtn.title = '一時停止'; };
+
+        playBtn.addEventListener('click', () => {
             this.audioEngine.resume();
-            this.audioEngine.play(this.tracks);
-            document.getElementById('btn-play').innerHTML = '<i class="fas fa-pause"></i>';
-            document.getElementById('btn-play').classList.add('active');
+            if (this.audioEngine.isPlaying) {
+                // 再生中 → 一時停止（現在位置を保持）
+                this.audioEngine.pause();
+                _setPlayIcon();
+            } else {
+                // 停止 or 一時停止中 → 再生 / 再開
+                this.audioEngine.play(this.tracks);
+                _setPauseIcon();
+            }
         });
         document.getElementById('btn-stop').addEventListener('click', () => {
             this.audioEngine.stop();
-            document.getElementById('btn-play').innerHTML = '<i class="fas fa-play"></i>';
-            document.getElementById('btn-play').classList.remove('active');
+            _setPlayIcon();
             this._updatePlayhead(0);
         });
         document.getElementById('btn-rewind').addEventListener('click', () => {
@@ -1819,8 +1852,7 @@ class StudioFlowDAW {
 
         document.getElementById('btn-vocal-enhance').addEventListener('click', async () => {
             if (!this.selectedTrack || this.selectedTrack.clips.length === 0) {
-                this._toast('ボーカルトラックを選択してください', 'error');
-                return;
+                this._showAIInfoOrError('vocal'); return;
             }
             this._showLoading('ボーカル処理中...');
             try {
@@ -1855,9 +1887,123 @@ class StudioFlowDAW {
             e.target.closest('.ctrl-group').querySelector('.ctrl-value').textContent = e.target.value + ' 半音';
         });
 
+        // AI機能の説明コンテンツ
+        const _aiInfo = {
+            stem: {
+                title: '<i class="fas fa-project-diagram"></i> 音源分離（ステム分離）',
+                body: `
+                    <div class="ai-info-section">
+                        <div class="ai-info-status working"><i class="fas fa-check-circle"></i> 動作中</div>
+                        <p>選択したトラックの音声を周波数帯域で自動分析し、<strong>ボーカル・ドラム・ベース・その他</strong>の4パートに分割します。</p>
+                        <div class="ai-info-usecases">
+                            <h4>できること</h4>
+                            <ul>
+                                <li>🎤 ボーカルだけをミュートして「カラオケ版」を作る</li>
+                                <li>🥁 ドラムだけを取り出して練習素材にする</li>
+                                <li>🎸 各パートの音量を個別に調整してリミックス</li>
+                                <li>🎹 特定のパートにエフェクトをかける</li>
+                            </ul>
+                        </div>
+                        <div class="ai-info-note">
+                            <i class="fas fa-info-circle"></i>
+                            周波数フィルタ方式のため、完全な分離ではなく「強調」に近い処理です。精度を求める場合はかんたんモードの「ボーカル除去」スライダーをお使いください。
+                        </div>
+                        <button class="ai-info-action-btn" id="ai-info-do-stem">
+                            <i class="fas fa-project-diagram"></i> 音源分離を実行
+                        </button>
+                    </div>`
+            },
+            midi: {
+                title: '<i class="fas fa-keyboard"></i> MIDI変換',
+                body: `
+                    <div class="ai-info-section">
+                        <div class="ai-info-status working"><i class="fas fa-check-circle"></i> 動作中（単音メロディ向け）</div>
+                        <p>選択したトラックの音声を解析し、<strong>音程（ピッチ）を検出してMIDIファイル（.mid）</strong>として書き出します。</p>
+                        <div class="ai-info-usecases">
+                            <h4>できること・使いみち</h4>
+                            <ul>
+                                <li>🎹 メロディをDAWに取り込んでアレンジし直す</li>
+                                <li>📝 耳コピした音程をMIDI化して楽譜ソフトで確認</li>
+                                <li>🎸 ギターやシンセのフレーズをMIDIに変換</li>
+                                <li>🔄 違う音色で同じメロディを鳴らす（ピアノ→ストリングスなど）</li>
+                            </ul>
+                        </div>
+                        <div class="ai-info-note">
+                            <i class="fas fa-info-circle"></i>
+                            <strong>得意なもの：</strong>単音メロディ（ボーカル・フルート・ギターのメロライン）<br>
+                            <strong>苦手なもの：</strong>複数の音が同時に鳴るコード・ドラム・ノイズが多い音源<br>
+                            変換後のMIDIはお使いのDAW（GarageBand, FL Studio等）で開けます。
+                        </div>
+                        <button class="ai-info-action-btn" id="ai-info-do-midi">
+                            <i class="fas fa-keyboard"></i> MIDI変換を実行
+                        </button>
+                    </div>`
+            },
+            vocal: {
+                title: '<i class="fas fa-microphone"></i> ボーカル強化',
+                body: `
+                    <div class="ai-info-section">
+                        <div class="ai-info-status working"><i class="fas fa-check-circle"></i> 動作中</div>
+                        <p>選択したトラックのボーカル音声に<strong>ノイズ除去・ピッチ補正・明瞭度向上</strong>などの処理を行います。</p>
+                        <div class="ai-info-usecases">
+                            <h4>できること</h4>
+                            <ul>
+                                <li>🎤 音程のズレを自動的に補正（オートチューン）</li>
+                                <li>🔇 バックグラウンドノイズを軽減</li>
+                                <li>✨ 歯擦音（シャリシャリ音）を除去</li>
+                                <li>🔊 ボーカルの存在感・明瞭度を上げる</li>
+                            </ul>
+                        </div>
+                        <div class="ai-info-note">
+                            <i class="fas fa-info-circle"></i>
+                            下の「ボーカル補正」タブで各パラメータを調整してから「ボーカル強化」ボタンを押すと処理が適用されます。処理は不可逆です（元に戻せません）。
+                        </div>
+                        <button class="ai-info-action-btn" id="ai-info-do-vocal">
+                            <i class="fas fa-microphone"></i> ボーカル強化パネルを開く
+                        </button>
+                    </div>`
+            }
+        };
+
+        const _showAIInfo = (type) => {
+            const info = _aiInfo[type];
+            if (!info) return;
+            document.getElementById('ai-info-title').innerHTML = info.title;
+            document.getElementById('ai-info-body').innerHTML = info.body;
+            document.getElementById('modal-ai-info').classList.remove('hidden');
+
+            // アクションボタン
+            const doStem  = document.getElementById('ai-info-do-stem');
+            const doMidi  = document.getElementById('ai-info-do-midi');
+            const doVocal = document.getElementById('ai-info-do-vocal');
+            if (doStem) doStem.addEventListener('click', () => {
+                document.getElementById('modal-ai-info').classList.add('hidden');
+                if (!this.selectedTrack || this.selectedTrack.clips.length === 0) { this._toast('トラックを選択してください', 'error'); return; }
+                document.getElementById('modal-stem').classList.remove('hidden');
+            });
+            if (doMidi) doMidi.addEventListener('click', () => {
+                document.getElementById('modal-ai-info').classList.add('hidden');
+                document.getElementById('btn-midi-convert').dispatchEvent(new MouseEvent('click', {bubbles:true}));
+            });
+            if (doVocal) doVocal.addEventListener('click', () => {
+                document.getElementById('modal-ai-info').classList.add('hidden');
+                document.querySelector('[data-panel="vocal"]')?.click();
+            });
+        };
+
+        // AI機能ボタン：右クリック or ダブルクリックで説明モーダル
+        document.querySelectorAll('.ai-feature-btn').forEach(btn => {
+            btn.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                _showAIInfo(btn.dataset.ai);
+            });
+            // シングルクリックでも「?」マーク付きのとき
+        });
+        document.getElementById('btn-ai-help').addEventListener('click', () => _showAIInfo('midi'));
+
         // Stem split
         document.getElementById('btn-stem-split').addEventListener('click', () => {
-            if (!this.selectedTrack || this.selectedTrack.clips.length === 0) { this._toast('トラックを選択してください', 'error'); return; }
+            if (!this.selectedTrack || this.selectedTrack.clips.length === 0) { this._showAIInfoOrError('stem'); return; }
             document.getElementById('modal-stem').classList.remove('hidden');
         });
         document.getElementById('btn-do-stem-split').addEventListener('click', async () => {
@@ -1895,7 +2041,7 @@ class StudioFlowDAW {
 
         // MIDI
         document.getElementById('btn-midi-convert').addEventListener('click', async () => {
-            if (!this.selectedTrack || this.selectedTrack.clips.length === 0) { this._toast('トラックを選択してください', 'error'); return; }
+            if (!this.selectedTrack || this.selectedTrack.clips.length === 0) { this._showAIInfoOrError('midi'); return; }
             this._showLoading('MIDI変換中...');
             try {
                 const clip = this.selectedTrack.clips[0];
@@ -2042,16 +2188,7 @@ class StudioFlowDAW {
             switch (e.code) {
                 case 'Space':
                     e.preventDefault();
-                    if (this.audioEngine.isPlaying) {
-                        this.audioEngine.pause();
-                        document.getElementById('btn-play').innerHTML = '<i class="fas fa-play"></i>';
-                        document.getElementById('btn-play').classList.remove('active');
-                    } else {
-                        this.audioEngine.resume();
-                        this.audioEngine.play(this.tracks);
-                        document.getElementById('btn-play').innerHTML = '<i class="fas fa-pause"></i>';
-                        document.getElementById('btn-play').classList.add('active');
-                    }
+                    document.getElementById('btn-play').click();
                     break;
                 case 'Home': this.audioEngine.seek(0); this._updatePlayhead(0); break;
                 case 'Delete': case 'Backspace':
@@ -2342,6 +2479,20 @@ class StudioFlowDAW {
 
     _hideLoading() {
         document.getElementById('loading-overlay').classList.add('hidden');
+    }
+
+    /** AI機能ボタンを押したときにトラック未選択なら説明モーダルを出す */
+    _showAIInfoOrError(type) {
+        // modal-ai-info があれば説明を表示、なければトーストでエラー
+        const modal = document.getElementById('modal-ai-info');
+        if (modal) {
+            document.getElementById('btn-ai-help')?.dispatchEvent(new MouseEvent('click', {bubbles:true}));
+            // type別に表示
+            const btn = document.querySelector(`.ai-feature-btn[data-ai="${type}"]`);
+            if (btn) btn.dispatchEvent(new MouseEvent('contextmenu', {bubbles:true}));
+        } else {
+            this._toast('トラックをクリックして選択してから実行してください', 'error');
+        }
     }
 
     _toast(message, type = 'info') {
