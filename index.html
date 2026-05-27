@@ -131,6 +131,9 @@
                 <div class="action-bar-row action-bar-row-sub">
                     <span id="storage-indicator" class="storage-indicator" title="ブラウザに自動保存中">💾 保存済み</span>
                     <div class="abar-spacer"></div>
+                    <button id="btn-easy-clear" class="abar-btn abar-danger" title="現在の曲を削除">
+                        <i class="fas fa-trash"></i><span>削除</span>
+                    </button>
                     <button id="btn-toggle-advanced" class="abar-btn abar-advanced">
                         <i class="fas fa-sliders-h"></i><span>上級者モード</span>
                     </button>
@@ -146,23 +149,23 @@
                 <aside id="left-sidebar">
                     <div class="tool-section">
                         <h3>ツール</h3>
-                        <button class="tool-btn active" data-tool="select" title="選択"><i class="fas fa-mouse-pointer"></i></button>
-                        <button class="tool-btn" data-tool="cut" title="カット"><i class="fas fa-cut"></i></button>
-                        <button class="tool-btn" data-tool="move" title="移動"><i class="fas fa-arrows-alt"></i></button>
-                        <button class="tool-btn" data-tool="zoom" title="ズーム"><i class="fas fa-search-plus"></i></button>
-                        <button class="tool-btn" data-tool="draw" title="オートメーション描画"><i class="fas fa-pen"></i></button>
+                        <button class="tool-btn active" data-tool="select" title="選択"><i class="fas fa-mouse-pointer"></i><span>選択</span></button>
+                        <button class="tool-btn tool-btn-cut" data-tool="cut" title="カット"><i class="fas fa-cut"></i><span>カット</span></button>
+                        <button class="tool-btn tool-btn-move" data-tool="move" title="移動"><i class="fas fa-arrows-alt"></i><span>移動</span></button>
+                        <button class="tool-btn tool-btn-zoom" data-tool="zoom" title="ズーム"><i class="fas fa-search-plus"></i><span>ズーム</span></button>
+                        <button class="tool-btn tool-btn-draw" data-tool="draw" title="オートメーション描画"><i class="fas fa-pen"></i><span>描画</span></button>
                     </div>
                     <div class="tool-section">
                         <h3>読込</h3>
-                        <button id="btn-import-audio" title="曲をアップロード" class="main-import-btn"><i class="fas fa-cloud-upload-alt"></i></button>
-                        <button id="btn-import-multiple" title="リミックス用に複数曲"><i class="fas fa-layer-group"></i></button>
-                        <button id="btn-add-track" title="空トラック追加"><i class="fas fa-plus"></i></button>
+                        <button id="btn-import-audio" title="曲をアップロード" class="main-import-btn"><i class="fas fa-cloud-upload-alt"></i><span>読込</span></button>
+                        <button id="btn-import-multiple" title="リミックス用に複数曲"><i class="fas fa-layer-group"></i><span>複数</span></button>
+                        <button id="btn-add-track" title="空トラック追加"><i class="fas fa-plus"></i><span>追加</span></button>
                     </div>
                     <div class="tool-section">
                         <h3>AI機能</h3>
-                        <button id="btn-stem-split" title="選択トラックを再分離"><i class="fas fa-project-diagram"></i> 分離</button>
-                        <button id="btn-midi-convert" title="MIDI変換"><i class="fas fa-keyboard"></i> MIDI</button>
-                        <button id="btn-vocal-enhance" title="ボーカル強化"><i class="fas fa-microphone"></i> 強化</button>
+                        <button id="btn-stem-split" title="選択トラックを再分離"><i class="fas fa-project-diagram"></i><span>分離</span></button>
+                        <button id="btn-midi-convert" title="MIDI変換"><i class="fas fa-keyboard"></i><span>MIDI</span></button>
+                        <button id="btn-vocal-enhance" title="ボーカル強化"><i class="fas fa-microphone"></i><span>強化</span></button>
                     </div>
                 </aside>
 
@@ -193,12 +196,16 @@
             </div>
 
             <div id="bottom-panel">
+                <div class="bottom-panel-resize-handle"></div>
                 <div class="bottom-tabs">
                     <button class="bottom-tab active" data-panel="mixer">ミキサー</button>
                     <button class="bottom-tab" data-panel="mastering">マスタリング</button>
                     <button class="bottom-tab" data-panel="vocal">ボーカル補正</button>
                     <button class="bottom-tab" data-panel="automation">オートメーション</button>
                     <button class="bottom-tab" data-panel="remix">リミックス</button>
+                    <button id="btn-toggle-bottom-panel" class="bottom-panel-toggle-btn" title="パネルを折りたたむ">
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
                 </div>
 
                 <div class="bottom-content active" id="panel-mixer">

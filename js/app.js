@@ -137,6 +137,11 @@ class StudioFlowDAW {
             }
         });
 
+        // Clear / delete project
+        document.getElementById('btn-easy-clear').addEventListener('click', () => {
+            this._clearProject();
+        });
+
         // Toggle advanced mode
         document.getElementById('btn-toggle-advanced').addEventListener('click', () => {
             this._switchToAdvanced();
@@ -233,8 +238,7 @@ class StudioFlowDAW {
             card.dataset.part = info.part;
             card.dataset.trackId = track.id;
 
-            const displayName = track.name.replace(/^[\u{1F300}-\u{1FAF6}\u{2600}-\u{27BF}]\s*/u, '');
-            const cleanName = displayName || track.name;
+            const cleanName = track.name.replace(/^\S+\s+/, '') || track.name;
 
             // 変化量 計算
             const changePct = this._computeChangePct(track);
@@ -879,6 +883,26 @@ class StudioFlowDAW {
         badge.dataset.level = pct >= 50 ? 'high' : pct >= 15 ? 'mid' : 'low';
     }
 
+    async _clearProject() {
+        if (!confirm('現在の曲データをすべて削除しますか？\n（この操作は元に戻せません）')) return;
+
+        this.audioEngine.stop();
+
+        // 全トラックを削除
+        [...this.tracks].forEach(t => this.removeTrack(t.id));
+
+        // IndexedDBのデータも削除
+        if (this.storage) {
+            try { await this.storage.clearAll(); } catch(e) {}
+        }
+
+        this._renderEasyCards();
+        this._updateMixerUI();
+        this._setStep(1);
+        this._toast('曲データを削除しました。新しい曲をアップロードしてください。', 'info');
+        this._updateStorageIndicator();
+    }
+
     _updateEasyCardsState() {
         document.querySelectorAll('.part-card').forEach(card => {
             const track = this.tracks.find(t => t.id === card.dataset.trackId);
@@ -901,14 +925,14 @@ class StudioFlowDAW {
         // AI音楽モード（全体ミックス）用プリセット
         // EQはトラックのノードに直接、ボーカルはM/S処理で適用
         const presets = {
-            'pop':       { eqLow:  1, eqMid:  1, eqHigh:  3, reverb:  5, vocalRemove:  0, volume: 0.85, masterEQ: { low: 1, lowmid: 0, mid: 1, highmid: 2, high: 3 }},
-            'rock':      { eqLow:  3, eqMid:  0, eqHigh:  2, reverb: 10, vocalRemove:  0, volume: 0.90, masterEQ: { low: 3, lowmid: 1, mid: 0, highmid: 2, high: 2 }},
-            'hiphop':    { eqLow:  6, eqMid: -1, eqHigh:  1, reverb:  8, vocalRemove:  0, volume: 0.90, masterEQ: { low: 5, lowmid: 2, mid: -1, highmid: 1, high: 1 }},
-            'edm':       { eqLow:  5, eqMid: -1, eqHigh:  4, reverb: 20, vocalRemove:  0, volume: 0.90, masterEQ: { low: 4, lowmid: 0, mid: -1, highmid: 3, high: 4 }},
-            'chill':     { eqLow:  2, eqMid:  0, eqHigh:  1, reverb: 30, vocalRemove:  0, volume: 0.80, masterEQ: { low: 2, lowmid: 1, mid: 0, highmid: -1, high: 1 }},
-            'vocal-up':  { eqLow: -1, eqMid:  4, eqHigh:  2, reverb:  5, vocalRemove:  0, volume: 0.85, masterEQ: { low: -1, lowmid: 0, mid: 2, highmid: 3, high: 2 }},
-            'bass-boost':{ eqLow:  8, eqMid: -1, eqHigh:  0, reverb:  5, vocalRemove:  0, volume: 0.85, masterEQ: { low: 6, lowmid: 3, mid: 0, highmid: 0, high: 0 }},
-            'karaoke':   { eqLow:  0, eqMid:  0, eqHigh:  0, reverb: 15, vocalRemove: 75, volume: 0.85, masterEQ: { low: 0, lowmid: 0, mid: 0, highmid: 0, high: 0 }},
+            'pop':       { eqLow:  1, eqMid:  1, eqHigh:  3, reverb:  5, vocalRemove:  0, volume: 0.85, masterEQ: { low: 1, lowmid: 0, mid: 1, highmid: 2, high: 3 }, stemVols: { vocals: 0.90, drums: 0.70, bass: 0.65, other: 0.60 }},
+            'rock':      { eqLow:  3, eqMid:  0, eqHigh:  2, reverb: 10, vocalRemove:  0, volume: 0.90, masterEQ: { low: 3, lowmid: 1, mid: 0, highmid: 2, high: 2 }, stemVols: { vocals: 0.80, drums: 0.90, bass: 0.85, other: 0.75 }},
+            'hiphop':    { eqLow:  6, eqMid: -1, eqHigh:  1, reverb:  8, vocalRemove:  0, volume: 0.90, masterEQ: { low: 5, lowmid: 2, mid: -1, highmid: 1, high: 1 }, stemVols: { vocals: 0.85, drums: 0.85, bass: 1.00, other: 0.50 }},
+            'edm':       { eqLow:  5, eqMid: -1, eqHigh:  4, reverb: 20, vocalRemove:  0, volume: 0.90, masterEQ: { low: 4, lowmid: 0, mid: -1, highmid: 3, high: 4 }, stemVols: { vocals: 0.60, drums: 0.95, bass: 0.90, other: 0.80 }},
+            'chill':     { eqLow:  2, eqMid:  0, eqHigh:  1, reverb: 30, vocalRemove:  0, volume: 0.80, masterEQ: { low: 2, lowmid: 1, mid: 0, highmid: -1, high: 1 }, stemVols: { vocals: 0.75, drums: 0.50, bass: 0.60, other: 0.70 }},
+            'vocal-up':  { eqLow: -1, eqMid:  4, eqHigh:  2, reverb:  5, vocalRemove:  0, volume: 0.85, masterEQ: { low: -1, lowmid: 0, mid: 2, highmid: 3, high: 2 }, stemVols: { vocals: 1.20, drums: 0.50, bass: 0.50, other: 0.45 }},
+            'bass-boost':{ eqLow:  8, eqMid: -1, eqHigh:  0, reverb:  5, vocalRemove:  0, volume: 0.85, masterEQ: { low: 6, lowmid: 3, mid: 0, highmid: 0, high: 0 }, stemVols: { vocals: 0.70, drums: 0.80, bass: 1.30, other: 0.60 }},
+            'karaoke':   { eqLow:  0, eqMid:  0, eqHigh:  0, reverb: 15, vocalRemove: 75, volume: 0.85, masterEQ: { low: 0, lowmid: 0, mid: 0, highmid: 0, high: 0 }, stemVols: { vocals: 0.15, drums: 0.80, bass: 0.80, other: 0.80 }},
         };
 
         const p = presets[preset];
@@ -919,8 +943,17 @@ class StudioFlowDAW {
         this.tracks.forEach(track => {
             if (track._isReference) return;
 
-            // 音量
-            track.volume = p.volume;
+            // 音量（AIミックスは全体ボリューム、ステムモードはstem別）
+            if (track._isAIMix) {
+                track.volume = p.volume;
+            } else {
+                const stemMap = { 'ボーカル': 'vocals', 'ドラム': 'drums', 'ベース': 'bass', 'その他': 'other', 'メロディ': 'vocals', 'パッド': 'other' };
+                let stemType = 'other';
+                for (const [key, val] of Object.entries(stemMap)) {
+                    if (track.name.includes(key)) { stemType = val; break; }
+                }
+                track.volume = (p.stemVols && p.stemVols[stemType]) ?? p.volume;
+            }
             track.muted = false;
             track.nodes.gainNode.gain.setValueAtTime(track.volume, now);
 
@@ -1675,6 +1708,35 @@ class StudioFlowDAW {
             });
         });
 
+        // ボトムパネルのドラッグリサイズ
+        const bottomPanel = document.getElementById('bottom-panel');
+        const resizeHandle = document.querySelector('.bottom-panel-resize-handle');
+        if (resizeHandle && bottomPanel) {
+            let isDragging = false, startY = 0, startH = 0;
+            resizeHandle.addEventListener('mousedown', (e) => {
+                isDragging = true; startY = e.clientY; startH = bottomPanel.offsetHeight;
+                e.preventDefault();
+            });
+            document.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                const dy = startY - e.clientY;
+                const newH = Math.max(40, Math.min(500, startH + dy));
+                bottomPanel.style.height = newH + 'px';
+            });
+            document.addEventListener('mouseup', () => { isDragging = false; });
+        }
+
+        // ボトムパネルのトグルボタン
+        const btnToggleBottom = document.getElementById('btn-toggle-bottom-panel');
+        if (btnToggleBottom && bottomPanel) {
+            btnToggleBottom.addEventListener('click', () => {
+                const collapsed = bottomPanel.classList.toggle('collapsed');
+                btnToggleBottom.innerHTML = collapsed
+                    ? '<i class="fas fa-chevron-up"></i>'
+                    : '<i class="fas fa-chevron-down"></i>';
+            });
+        }
+
         // Master volume
         document.getElementById('master-volume').addEventListener('input', (e) => {
             const val = parseFloat(e.target.value);
@@ -2143,6 +2205,8 @@ class StudioFlowDAW {
                 pan: t.pan,
                 muted: t.muted,
                 solo: t.solo,
+                isAIMix: t._isAIMix || false,
+                isReference: t._isReference || false,
                 clips: t.clips.map(c => ({
                     id: c.id,
                     name: c.name,
@@ -2198,6 +2262,8 @@ class StudioFlowDAW {
                 track.muted = trackMeta.muted ?? false;
                 track.nodes.gainNode.gain.value = track.muted ? 0 : track.volume;
                 track.nodes.panNode.pan.value = track.pan;
+                track._isAIMix = trackMeta.isAIMix || false;
+                track._isReference = trackMeta.isReference || false;
 
                 // カラー更新
                 const trackDiv = document.querySelector(`[data-track-id="${track.id}"].track`);
@@ -2218,6 +2284,10 @@ class StudioFlowDAW {
                         _saved: true
                     };
                     track.clips.push(clip);
+                    // M/S処理のために元バッファを保持
+                    if (track._isAIMix && !track._msOriginalBuffer) {
+                        track._msOriginalBuffer = result.buffer;
+                    }
                     this._renderClip(track, clip);
                     this._updateTrackHeader(track);
                 }
