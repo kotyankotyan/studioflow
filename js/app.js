@@ -107,22 +107,24 @@ class StudioFlowDAW {
             document.getElementById('btn-easy-compare').classList.toggle('active', this.isComparing);
 
             if (this.isComparing) {
-                // Store current volumes & mute all but original
+                // 原曲と比較: 編集済みトラックをミュートし、参照トラックを聴かせる
                 this.savedVolumes = {};
                 this.tracks.forEach(t => {
                     this.savedVolumes[t.id] = { volume: t.volume, muted: t.muted };
-                    if (t.name.includes('原曲') || t.name.includes('（参照用）')) {
+                    if (t._isReference) {
+                        // 参照用トラックをミュート解除して聴かせる
                         t.muted = false;
-                        t.nodes.gainNode.gain.value = t.volume;
+                        t.nodes.gainNode.gain.value = 0.85;
                     } else {
+                        // 編集済みトラックをミュート
                         t.muted = true;
                         t.nodes.gainNode.gain.value = 0;
                     }
                 });
                 this._updateEasyCardsState();
-                this._toast('原曲（調整前）を再生中...', 'info');
+                this._toast('🔇 原曲（調整前）を再生中... もう一度押すと調整後に戻ります', 'info');
             } else {
-                // Restore saved volumes
+                // 調整後に戻す
                 this.tracks.forEach(t => {
                     if (this.savedVolumes[t.id]) {
                         t.volume = this.savedVolumes[t.id].volume;
@@ -131,7 +133,7 @@ class StudioFlowDAW {
                     }
                 });
                 this._updateEasyCardsState();
-                this._toast('調整後のミックスに戻しました', 'info');
+                this._toast('✅ 調整後のミックスに戻しました', 'info');
             }
         });
 
@@ -217,15 +219,31 @@ class StudioFlowDAW {
                 if (track.name.includes(key)) { info = val; break; }
             }
 
-            const isOriginal = track.name.includes('原曲') || track.name.includes('参照用');
+            const isOriginal = track.name.includes('原曲') || track.name.includes('参照用') || track._isReference;
+            const isAIMix = !!track._isAIMix;
+
+            if (isAIMix) {
+                info = { icon: '🎵', part: 'fullmix' };
+            } else if (isOriginal || track._isReference) {
+                info = { icon: '🔇', part: 'original' };
+            }
 
             const card = document.createElement('div');
-            card.className = 'part-card' + (track.muted ? ' is-muted' : '');
+            card.className = 'part-card' + (track.muted ? ' is-muted' : '') + (isAIMix ? ' ai-mix-card' : '');
             card.dataset.part = info.part;
             card.dataset.trackId = track.id;
 
-            const displayName = track.name.replace(/^[^\s]+\s*/, ''); // Remove emoji prefix
+            const displayName = track.name.replace(/^[\u{1F300}-\u{1FAF6}\u{2600}-\u{27BF}]\s*/u, '');
             const cleanName = displayName || track.name;
+
+            // 変化量 計算
+            const changePct = this._computeChangePct(track);
+            const changeBadgeHtml = !isOriginal ? `
+                <div class="change-badge" data-change-badge="${track.id}" style="--change-pct:${changePct}%">
+                    <span class="change-badge-label">変化量</span>
+                    <span class="change-badge-val">${changePct}%</span>
+                    <div class="change-badge-bar"><div class="change-badge-fill" style="width:${changePct}%"></div></div>
+                </div>` : '';
 
             card.innerHTML = `
                 <div class="part-card-header">
@@ -234,17 +252,14 @@ class StudioFlowDAW {
                         <span class="part-name">${cleanName}</span>
                     </div>
                     <div class="part-card-actions">
-                        <button class="part-btn btn-part-preview" data-track-id="${track.id}" title="5秒だけ試聴">
-                            <i class="fas fa-play"></i>
-                        </button>
-                        <button class="part-btn btn-part-solo" data-track-id="${track.id}" title="このパートだけ聴く">
-                            <i class="fas fa-headphones"></i>
-                        </button>
-                        <button class="part-btn btn-part-mute ${track.muted ? 'muted' : ''}" data-track-id="${track.id}" title="${isOriginal ? '原曲を聴く' : 'ミュート'}">
+                        ${!isOriginal ? `<button class="part-btn btn-part-preview" data-track-id="${track.id}" title="5秒だけ試聴"><i class="fas fa-play"></i></button>` : ''}
+                        ${!isOriginal ? `<button class="part-btn btn-part-solo" data-track-id="${track.id}" title="このパートだけ聴く"><i class="fas fa-headphones"></i></button>` : ''}
+                        <button class="part-btn btn-part-mute ${track.muted ? 'muted' : ''}" data-track-id="${track.id}" title="${isOriginal ? '原曲を再生する' : 'ミュート'}">
                             <i class="fas fa-${track.muted ? 'volume-mute' : 'volume-up'}"></i>
                         </button>
                     </div>
                 </div>
+                ${changeBadgeHtml}
                 <div class="part-waveform">
                     <canvas data-track-id="${track.id}"></canvas>
                     <div class="part-level-meter" data-meter="${track.id}">
@@ -253,12 +268,25 @@ class StudioFlowDAW {
                     </div>
                 </div>
                 <div class="part-controls">
+                    ${isOriginal ? `
+                    <div class="ref-track-info">
+                        <i class="fas fa-info-circle"></i>
+                        <span>▶ボタンで原曲と今の音を聴き比べできます</span>
+                    </div>
+                    ` : `
                     <div class="part-slider-group">
                         <span class="part-slider-label"><i class="fas fa-volume-up"></i> 音量</span>
                         <input type="range" class="part-slider volume-slider" data-track-id="${track.id}" data-param="volume" min="0" max="1.5" step="0.01" value="${track.volume}">
                         <span class="part-slider-value">${Math.round(track.volume * 100)}%</span>
                     </div>
-                    ${!isOriginal ? `
+                    ${isAIMix ? `
+                    <div class="part-slider-group ms-vocal-group">
+                        <span class="part-slider-label ms-vocal-label">🎤 ボーカル除去</span>
+                        <input type="range" class="part-slider ms-vocal-slider" data-track-id="${track.id}" data-param="ms-vocal" min="0" max="100" step="5" value="${track._msVocalReduction || 0}">
+                        <span class="part-slider-value ms-vocal-val">${track._msVocalReduction ? track._msVocalReduction + '% 除去中' : '変化なし'}</span>
+                    </div>
+                    <div class="ms-vocal-status" data-ms-status="${track.id}"></div>
+                    ` : ''}
                     <div class="part-slider-group">
                         <span class="part-slider-label"><i class="fas fa-church"></i> 響き</span>
                         <input type="range" class="part-slider effect-slider" data-track-id="${track.id}" data-param="reverb" min="0" max="100" step="1" value="${this._getTrackEffectValue(track, 'reverb')}">
@@ -289,10 +317,6 @@ class StudioFlowDAW {
                             </div>
                         </div>
                     </div>
-                    ` : `
-                    <p style="font-size:11px;color:var(--text-muted);font-style:italic;padding:4px 0;">
-                        ミュートを解除して原曲と聴き比べできます
-                    </p>
                     `}
                 </div>
 
@@ -409,6 +433,7 @@ class StudioFlowDAW {
                     track.nodes.reverbDry.gain.setValueAtTime(1.0 - wet * 0.5, now);
                 }
                 e.target.closest('.part-slider-group').querySelector('.part-slider-value').textContent = e.target.value + '%';
+                this._updateChangeBadge(track);
             });
         });
 
@@ -439,6 +464,20 @@ class StudioFlowDAW {
             });
         });
 
+        // M/Sボーカル除去スライダー（AI音楽モード専用・実際に変化が聴こえる）
+        grid.querySelectorAll('.ms-vocal-slider').forEach(slider => {
+            slider.addEventListener('input', (e) => {
+                const track = this.tracks.find(t => t.id === e.target.dataset.trackId);
+                if (!track) return;
+                const pct = parseInt(e.target.value);
+                track._msVocalReduction = pct;
+                const valLabel = e.target.closest('.part-slider-group').querySelector('.ms-vocal-val');
+                if (valLabel) valLabel.textContent = pct === 0 ? '変化なし' : pct + '% 除去中';
+                this._applyVocalMS(track, pct);
+                this._updateChangeBadge(track);
+            });
+        });
+
         // EQスライダー
         grid.querySelectorAll('.eq-slider').forEach(slider => {
             slider.addEventListener('input', (e) => {
@@ -466,6 +505,8 @@ class StudioFlowDAW {
                 const pct = ((val + 12) / 24 * 100).toFixed(0);
                 e.target.style.setProperty('--eq-pct', pct + '%');
                 e.target.dataset.positive = val > 0 ? '1' : '0';
+
+                this._updateChangeBadge(track);
             });
         });
 
@@ -760,6 +801,84 @@ class StudioFlowDAW {
         bar.style.width = ((end - start) * 100).toFixed(1) + '%';
     }
 
+    /**
+     * M/Sボーカル除去をデバウンスして適用する（800ms待ってから処理）
+     * OfflineAudioContextで実際に音が変わる！
+     */
+    _applyVocalMS(track, reductionPct) {
+        // 既存のタイマーをクリア
+        if (track._msDebounceTimer) clearTimeout(track._msDebounceTimer);
+
+        const statusEl = document.querySelector(`[data-ms-status="${track.id}"]`);
+
+        if (reductionPct === 0) {
+            // 0% → オリジナルに即時戻す
+            if (track._msOriginalBuffer) {
+                track.clips[0].buffer = track._msOriginalBuffer;
+                if (this.audioEngine.isPlaying) {
+                    const wasAt = this.audioEngine.getCurrentTime();
+                    this.audioEngine.play(this.tracks);
+                }
+                // 波形再描画
+                const canvas = document.querySelector(`.part-waveform canvas[data-track-id="${track.id}"]`);
+                if (canvas) this.waveform.drawClipWaveform(canvas, track._msOriginalBuffer, 0, track._msOriginalBuffer.duration);
+            }
+            if (statusEl) statusEl.textContent = '';
+            return;
+        }
+
+        if (statusEl) statusEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 処理中...';
+
+        track._msDebounceTimer = setTimeout(async () => {
+            if (!track._msOriginalBuffer) return;
+            const reduction = reductionPct / 100;
+            try {
+                const processed = await this.creator.removeVocalMidSide(track._msOriginalBuffer, reduction);
+                track.clips[0].buffer = processed;
+
+                // 再生中なら再起動
+                if (this.audioEngine.isPlaying) {
+                    this.audioEngine.play(this.tracks);
+                }
+
+                // 波形再描画
+                const canvas = document.querySelector(`.part-waveform canvas[data-track-id="${track.id}"]`);
+                if (canvas) this.waveform.drawClipWaveform(canvas, processed, 0, processed.duration);
+
+                if (statusEl) {
+                    statusEl.innerHTML = `✅ ${reductionPct}% 除去 適用済み`;
+                    setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 3000);
+                }
+            } catch (err) {
+                if (statusEl) statusEl.textContent = '⚠️ エラー';
+                console.error('M/S vocal error:', err);
+            }
+        }, 800);
+    }
+
+    /** 変化量（0〜100%）を計算する */
+    _computeChangePct(track) {
+        if (!track || track._isReference) return 0;
+        const volDefault = 0.85;
+        const volChange = Math.min(1, Math.abs((track.volume || volDefault) - volDefault) / volDefault);
+        const eqChange = (Math.abs(track._eqLow || 0) + Math.abs(track._eqMid || 0) + Math.abs(track._eqHigh || 0)) / 36;
+        const reverbChange = (track._easyReverb || 0) / 100;
+        const vocalChange = (track._msVocalReduction || 0) / 100;
+        return Math.min(100, Math.round((volChange + eqChange + reverbChange + vocalChange) / 4 * 100));
+    }
+
+    /** 変化量バッジを更新する */
+    _updateChangeBadge(track) {
+        const badge = document.querySelector(`[data-change-badge="${track.id}"]`);
+        if (!badge) return;
+        const pct = this._computeChangePct(track);
+        badge.querySelector('.change-badge-val').textContent = pct + '%';
+        const fill = badge.querySelector('.change-badge-fill');
+        if (fill) fill.style.width = pct + '%';
+        // 変化量に応じて色を変える
+        badge.dataset.level = pct >= 50 ? 'high' : pct >= 15 ? 'mid' : 'low';
+    }
+
     _updateEasyCardsState() {
         document.querySelectorAll('.part-card').forEach(card => {
             const track = this.tracks.find(t => t.id === card.dataset.trackId);
@@ -779,39 +898,56 @@ class StudioFlowDAW {
     }
 
     _applyEasyPreset(preset) {
+        // AI音楽モード（全体ミックス）用プリセット
+        // EQはトラックのノードに直接、ボーカルはM/S処理で適用
         const presets = {
-            'pop': { vocals: 0.9, drums: 0.7, bass: 0.65, other: 0.6, masterEQ: { low: 1, lowmid: 0, mid: 1, highmid: 2, high: 3 }},
-            'rock': { vocals: 0.8, drums: 0.9, bass: 0.85, other: 0.75, masterEQ: { low: 3, lowmid: 1, mid: 0, highmid: 2, high: 2 }},
-            'hiphop': { vocals: 0.85, drums: 0.85, bass: 1.0, other: 0.5, masterEQ: { low: 5, lowmid: 2, mid: -1, highmid: 1, high: 1 }},
-            'edm': { vocals: 0.6, drums: 0.95, bass: 0.9, other: 0.8, masterEQ: { low: 4, lowmid: 0, mid: -1, highmid: 3, high: 4 }},
-            'chill': { vocals: 0.75, drums: 0.5, bass: 0.6, other: 0.7, masterEQ: { low: 2, lowmid: 1, mid: 0, highmid: -1, high: 1 }},
-            'vocal-up': { vocals: 1.2, drums: 0.5, bass: 0.5, other: 0.45, masterEQ: { low: -1, lowmid: 0, mid: 2, highmid: 3, high: 2 }},
-            'bass-boost': { vocals: 0.7, drums: 0.8, bass: 1.3, other: 0.6, masterEQ: { low: 6, lowmid: 3, mid: 0, highmid: 0, high: 0 }},
-            'karaoke': { vocals: 0.15, drums: 0.8, bass: 0.8, other: 0.8, masterEQ: { low: 0, lowmid: 0, mid: 0, highmid: 0, high: 0 }},
+            'pop':       { eqLow:  1, eqMid:  1, eqHigh:  3, reverb:  5, vocalRemove:  0, volume: 0.85, masterEQ: { low: 1, lowmid: 0, mid: 1, highmid: 2, high: 3 }},
+            'rock':      { eqLow:  3, eqMid:  0, eqHigh:  2, reverb: 10, vocalRemove:  0, volume: 0.90, masterEQ: { low: 3, lowmid: 1, mid: 0, highmid: 2, high: 2 }},
+            'hiphop':    { eqLow:  6, eqMid: -1, eqHigh:  1, reverb:  8, vocalRemove:  0, volume: 0.90, masterEQ: { low: 5, lowmid: 2, mid: -1, highmid: 1, high: 1 }},
+            'edm':       { eqLow:  5, eqMid: -1, eqHigh:  4, reverb: 20, vocalRemove:  0, volume: 0.90, masterEQ: { low: 4, lowmid: 0, mid: -1, highmid: 3, high: 4 }},
+            'chill':     { eqLow:  2, eqMid:  0, eqHigh:  1, reverb: 30, vocalRemove:  0, volume: 0.80, masterEQ: { low: 2, lowmid: 1, mid: 0, highmid: -1, high: 1 }},
+            'vocal-up':  { eqLow: -1, eqMid:  4, eqHigh:  2, reverb:  5, vocalRemove:  0, volume: 0.85, masterEQ: { low: -1, lowmid: 0, mid: 2, highmid: 3, high: 2 }},
+            'bass-boost':{ eqLow:  8, eqMid: -1, eqHigh:  0, reverb:  5, vocalRemove:  0, volume: 0.85, masterEQ: { low: 6, lowmid: 3, mid: 0, highmid: 0, high: 0 }},
+            'karaoke':   { eqLow:  0, eqMid:  0, eqHigh:  0, reverb: 15, vocalRemove: 75, volume: 0.85, masterEQ: { low: 0, lowmid: 0, mid: 0, highmid: 0, high: 0 }},
         };
 
         const p = presets[preset];
         if (!p) return;
 
-        const stemMap = { 'ボーカル': 'vocals', 'ドラム': 'drums', 'ベース': 'bass', 'その他': 'other',
-                          'メロディ': 'vocals', 'パッド': 'other' };
+        const now = this.audioEngine.ctx.currentTime;
 
         this.tracks.forEach(track => {
-            if (track.name.includes('原曲') || track.name.includes('参照用')) return;
+            if (track._isReference) return;
 
-            let stemType = 'other';
-            for (const [key, val] of Object.entries(stemMap)) {
-                if (track.name.includes(key)) { stemType = val; break; }
+            // 音量
+            track.volume = p.volume;
+            track.muted = false;
+            track.nodes.gainNode.gain.setValueAtTime(track.volume, now);
+
+            // EQ適用（実際にノードに反映）
+            track._eqLow  = p.eqLow;
+            track._eqMid  = p.eqMid;
+            track._eqHigh = p.eqHigh;
+            if (track.nodes.eqLow)  track.nodes.eqLow.gain.setValueAtTime(p.eqLow, now);
+            if (track.nodes.eqMid)  track.nodes.eqMid.gain.setValueAtTime(p.eqMid, now);
+            if (track.nodes.eqHigh) track.nodes.eqHigh.gain.setValueAtTime(p.eqHigh, now);
+
+            // リバーブ適用
+            track._easyReverb = p.reverb;
+            const wet = p.reverb / 100;
+            if (track.nodes.reverbWet) {
+                track.nodes.reverbWet.gain.setValueAtTime(wet * 0.85, now);
+                track.nodes.reverbDry.gain.setValueAtTime(1.0 - wet * 0.5, now);
             }
 
-            if (p[stemType] !== undefined) {
-                track.volume = p[stemType];
-                track.muted = false;
-                track.nodes.gainNode.gain.setValueAtTime(track.volume, this.audioEngine.ctx.currentTime);
+            // ボーカル除去（AI音楽モードのみ、M/S処理）
+            if (track._isAIMix) {
+                track._msVocalReduction = p.vocalRemove;
+                this._applyVocalMS(track, p.vocalRemove);
             }
         });
 
-        // Apply master EQ
+        // マスターEQ適用
         if (p.masterEQ) {
             Object.entries(p.masterEQ).forEach(([band, val]) => {
                 this.audioEngine.setMasterEQ(band, val);
@@ -927,97 +1063,68 @@ class StudioFlowDAW {
             return;
         }
 
-        // Clear empty tracks
-        const emptyTrackIds = this.tracks.filter(t => t.clips.length === 0).map(t => t.id);
-        emptyTrackIds.forEach(id => this.removeTrack(id));
+        // 既存のトラックをすべてクリア
+        [...this.tracks].forEach(t => this.removeTrack(t.id));
 
-        // Also clear previously imported tracks
-        const oldTrackIds = this.tracks.map(t => t.id);
-        oldTrackIds.forEach(id => this.removeTrack(id));
+        // === AI音楽モード ===
+        // SunoAI等のミックス済み楽曲を1トラックとして取り込む
+        // ボーカル調整はM/S処理（実際に変化が聴こえる方式）
 
-        const stemNames = { vocals: 'ボーカル', drums: 'ドラム', bass: 'ベース', other: 'その他（ギター・シンセ等）' };
-        const stemColors = { vocals: '#ec4899', drums: '#eab308', bass: '#22c55e', other: '#a855f7' };
-        const stemIcons = { vocals: '🎤', drums: '🥁', bass: '🎸', other: '🎹' };
+        // ① 編集用トラック（全体ミックス）
+        const mixTrack = this.addTrack('🎵 ' + songName);
+        mixTrack.color = '#4a9eff';
+        mixTrack.volume = 0.85;
+        mixTrack.nodes.gainNode.gain.value = 0.85;
+        mixTrack._msOriginalBuffer = audioBuffer; // M/S処理の元データ保持用
+        mixTrack._msVocalReduction = 0;
+        mixTrack._isAIMix = true;
 
-        const loadingEl = document.getElementById('loading-text');
-        const progressEl = document.getElementById('loading-progress');
+        const mixClip = {
+            id: 'clip_mix_' + Date.now(),
+            name: songName,
+            buffer: audioBuffer,
+            startTime: 0,
+            duration: audioBuffer.duration,
+            offset: 0
+        };
+        mixTrack.clips.push(mixClip);
+        this._renderClip(mixTrack, mixClip);
+        this._updateTrackHeader(mixTrack);
 
-        try {
-            const stems = await this.stemSeparator.separate(audioBuffer, {
-                vocals: true, drums: true, bass: true, other: true,
-                onProgress: (pct, text) => {
-                    loadingEl.textContent = `${songName} - ${text}`;
-                    progressEl.style.width = pct + '%';
-                }
-            });
+        // ② 原曲（ミュート済み・比較用）
+        const origTrack = this.addTrack('🔇 原曲（比較用）');
+        origTrack.color = '#6b7280';
+        origTrack.muted = true;
+        origTrack.nodes.gainNode.gain.value = 0;
+        origTrack._isReference = true;
 
-            const stemOrder = ['vocals', 'drums', 'bass', 'other'];
-            stemOrder.forEach(stemKey => {
-                if (!stems[stemKey]) return;
-                const track = this.addTrack(`${stemIcons[stemKey]} ${stemNames[stemKey]}`);
-                track.color = stemColors[stemKey];
+        const origClip = {
+            id: 'clip_orig_' + Date.now(),
+            name: songName + '（原曲）',
+            buffer: audioBuffer,
+            startTime: 0,
+            duration: audioBuffer.duration,
+            offset: 0
+        };
+        origTrack.clips.push(origClip);
+        this._renderClip(origTrack, origClip);
+        this._updateTrackHeader(origTrack);
 
-                const trackDiv = document.querySelector(`[data-track-id="${track.id}"].track`);
-                if (trackDiv) trackDiv.querySelector('.track-color').style.background = stemColors[stemKey];
+        this._updateRuler();
+        this._updateMixerUI();
+        this._updateAutomationTrackSelect();
+        this._hideLoading();
 
-                const clip = {
-                    id: 'clip_stem_' + Date.now() + '_' + stemKey,
-                    name: `${songName} - ${stemNames[stemKey]}`,
-                    buffer: stems[stemKey],
-                    startTime: 0,
-                    duration: stems[stemKey].duration,
-                    offset: 0
-                };
-                track.clips.push(clip);
-                this._renderClip(track, clip);
-                this._updateTrackHeader(track);
-            });
-
-            // Original (muted reference)
-            const origTrack = this.addTrack('🎵 原曲（参照用）');
-            origTrack.color = '#6b7280';
-            origTrack.muted = true;
-            origTrack.nodes.gainNode.gain.value = 0;
-            const origDiv = document.querySelector(`[data-track-id="${origTrack.id}"].track`);
-            if (origDiv) {
-                origDiv.querySelector('.track-color').style.background = '#6b7280';
-                origDiv.querySelector('.btn-mute').classList.add('active-mute');
-            }
-            const origClip = {
-                id: 'clip_orig_' + Date.now(),
-                name: `${songName}（原曲）`,
-                buffer: audioBuffer,
-                startTime: 0,
-                duration: audioBuffer.duration,
-                offset: 0
-            };
-            origTrack.clips.push(origClip);
-            this._renderClip(origTrack, origClip);
-            this._updateTrackHeader(origTrack);
-
-            this._updateRuler();
-            this._updateMixerUI();
-            this._updateAutomationTrackSelect();
-            this._hideLoading();
-
-            // Show easy cards
-            if (this.easyMode) {
-                this._renderEasyCards();
-            }
-
-            // 自動保存
-            await this._saveProject();
-
-            this._toast(
-                `「${songName}」を4パートに分離しました！スライダーで各パートのバランスを調整してみましょう。`,
-                'success'
-            );
-
-        } catch (err) {
-            this._hideLoading();
-            this._toast('音源分離エラー: ' + err.message, 'error');
-            console.error(err);
+        if (this.easyMode) {
+            this._renderEasyCards();
         }
+
+        await this._saveProject();
+
+        this._toast(
+            `「${songName}」を読み込みました！スライダーで音量・音質・ボーカルを調整してみましょう。`,
+            'success'
+        );
     }
 
     async importMultipleForRemix(files) {
@@ -1353,19 +1460,61 @@ class StudioFlowDAW {
             const ch = document.createElement('div');
             ch.className = 'mixer-channel';
             ch.dataset.trackId = track.id;
+            const trackNameShort = track.name.length > 8 ? track.name.replace(/^[^\s]+\s*/,'').substring(0,8) + '…' : track.name;
             ch.innerHTML = `
-                <h4>${track.name}</h4>
+                <h4 title="${track.name}">${trackNameShort}</h4>
+                <div class="mixer-eq-section">
+                    <div class="mixer-eq-row">
+                        <span class="mixer-eq-band-label">Hi</span>
+                        <input type="range" class="mixer-eq-knob" data-track-id="${track.id}" data-eq="high" min="-12" max="12" step="1" value="${track._eqHigh || 0}" title="高音 EQ: ${track._eqHigh || 0}dB">
+                    </div>
+                    <div class="mixer-eq-row">
+                        <span class="mixer-eq-band-label">Mid</span>
+                        <input type="range" class="mixer-eq-knob" data-track-id="${track.id}" data-eq="mid" min="-12" max="12" step="1" value="${track._eqMid || 0}" title="中音 EQ: ${track._eqMid || 0}dB">
+                    </div>
+                    <div class="mixer-eq-row">
+                        <span class="mixer-eq-band-label">Lo</span>
+                        <input type="range" class="mixer-eq-knob" data-track-id="${track.id}" data-eq="low" min="-12" max="12" step="1" value="${track._eqLow || 0}" title="低音 EQ: ${track._eqLow || 0}dB">
+                    </div>
+                    <div class="mixer-eq-row">
+                        <span class="mixer-eq-band-label">Rev</span>
+                        <input type="range" class="mixer-reverb-knob" data-track-id="${track.id}" min="0" max="100" step="5" value="${track._easyReverb || 0}" title="リバーブ: ${track._easyReverb || 0}%">
+                    </div>
+                </div>
                 <div class="meter-container">
                     <canvas class="meter track-meter-l" width="16" height="52" data-track-id="${track.id}" data-ch="l"></canvas>
                     <canvas class="meter track-meter-r" width="16" height="52" data-track-id="${track.id}" data-ch="r"></canvas>
                 </div>
-                <input type="range" class="mixer-vol" data-track-id="${track.id}" min="0" max="1.5" step="0.01" value="${track.volume}">
+                <input type="range" class="mixer-vol" data-track-id="${track.id}" min="0" max="1.5" step="0.01" value="${track.volume}" orient="vertical">
                 <span class="volume-label">${Math.round(track.volume * 100)}%</span>
                 <div class="mixer-buttons">
                     <button class="mixer-mute ${track.muted ? 'active-mute' : ''}" data-track-id="${track.id}">M</button>
                     <button class="mixer-solo ${track.solo ? 'active-solo' : ''}" data-track-id="${track.id}">S</button>
                 </div>
             `;
+            // EQノブ
+            ch.querySelectorAll('.mixer-eq-knob').forEach(knob => {
+                knob.addEventListener('input', (e) => {
+                    const band = e.target.dataset.eq;
+                    const val = parseInt(e.target.value);
+                    const now = this.audioEngine.ctx.currentTime;
+                    e.target.title = `${band === 'low' ? '低音' : band === 'mid' ? '中音' : '高音'} EQ: ${val > 0 ? '+' : ''}${val}dB`;
+                    if (band === 'low' && track.nodes.eqLow) { track._eqLow = val; track.nodes.eqLow.gain.setValueAtTime(val, now); }
+                    else if (band === 'mid' && track.nodes.eqMid) { track._eqMid = val; track.nodes.eqMid.gain.setValueAtTime(val, now); }
+                    else if (band === 'high' && track.nodes.eqHigh) { track._eqHigh = val; track.nodes.eqHigh.gain.setValueAtTime(val, now); }
+                });
+            });
+            // リバーブノブ
+            ch.querySelector('.mixer-reverb-knob').addEventListener('input', (e) => {
+                const wet = parseInt(e.target.value) / 100;
+                track._easyReverb = parseInt(e.target.value);
+                e.target.title = `リバーブ: ${e.target.value}%`;
+                if (track.nodes.reverbWet) {
+                    const now = this.audioEngine.ctx.currentTime;
+                    track.nodes.reverbWet.gain.setValueAtTime(wet * 0.85, now);
+                    track.nodes.reverbDry.gain.setValueAtTime(1.0 - wet * 0.5, now);
+                }
+            });
             ch.querySelector('.mixer-vol').addEventListener('input', (e) => {
                 track.volume = parseFloat(e.target.value);
                 if (!track.muted) track.nodes.gainNode.gain.setValueAtTime(track.volume, this.audioEngine.ctx.currentTime);
