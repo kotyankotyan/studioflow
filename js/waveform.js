@@ -20,9 +20,12 @@ class WaveformRenderer {
         const cssWidth  = rect.width  || canvas.offsetWidth  || canvas.parentElement?.offsetWidth  || 300;
         const cssHeight = rect.height || canvas.offsetHeight || canvas.parentElement?.offsetHeight || 64;
 
-        canvas.width  = cssWidth  * dpr;
-        canvas.height = cssHeight * dpr;
-        ctx.scale(dpr, dpr);
+        const MAX_CANVAS_PX = 16384;
+        const effectiveDpr = Math.min(dpr, MAX_CANVAS_PX / Math.max(cssWidth, cssHeight, 1));
+
+        canvas.width  = Math.round(cssWidth  * effectiveDpr);
+        canvas.height = Math.round(cssHeight * effectiveDpr);
+        ctx.scale(effectiveDpr, effectiveDpr);
 
         const width  = cssWidth;
         const height = cssHeight;
@@ -79,9 +82,13 @@ class WaveformRenderer {
         const cssWidth  = rect.width  || canvas.offsetWidth  || canvas.parentElement?.offsetWidth  || canvas.parentElement?.clientWidth  || 300;
         const cssHeight = rect.height || canvas.offsetHeight || canvas.parentElement?.offsetHeight || canvas.parentElement?.clientHeight || 64;
 
-        canvas.width  = cssWidth  * dpr;
-        canvas.height = cssHeight * dpr;
-        ctx.scale(dpr, dpr);
+        // ブラウザのCanvas最大サイズ（32767px）を超えないようにDPRを自動調整
+        const MAX_CANVAS_PX = 16384;
+        const effectiveDpr = Math.min(dpr, MAX_CANVAS_PX / Math.max(cssWidth, cssHeight, 1));
+
+        canvas.width  = Math.round(cssWidth  * effectiveDpr);
+        canvas.height = Math.round(cssHeight * effectiveDpr);
+        ctx.scale(effectiveDpr, effectiveDpr);
 
         const width  = cssWidth;
         const height = cssHeight;
