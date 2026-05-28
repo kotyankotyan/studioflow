@@ -151,10 +151,17 @@ class AudioEngine {
         convolver.connect(reverbWet);
         reverbWet.connect(reverbMix);
 
-        reverbMix.connect(analyser);
+        // ── スウィープ専用フィルター（FXクリップ用） ──────────────
+        const sweepFilter = this.ctx.createBiquadFilter();
+        sweepFilter.type = 'lowpass';
+        sweepFilter.frequency.value = 22050; // デフォルトは全通過（バイパス）
+        sweepFilter.Q.value = 1.5;
+
+        reverbMix.connect(sweepFilter);
+        sweepFilter.connect(analyser);
         analyser.connect(this.masterCompressor);
 
-        return { gainNode, panNode, analyser, eqLow, eqMid, eqHigh, reverbWet, reverbDry, convolver };
+        return { gainNode, panNode, analyser, eqLow, eqMid, eqHigh, reverbWet, reverbDry, convolver, sweepFilter };
     }
 
     getCurrentTime() {

@@ -405,6 +405,15 @@ class StudioFlowDAW {
                     `}
                 </div>
 
+                <!-- 🎛 動きFXボタン -->
+                ${!isOriginal ? `
+                <div class="part-fx-section">
+                    <button class="part-fx-btn" data-track-id="${track.id}">
+                        <i class="fas fa-magic"></i> 動きFX
+                        ${(track.fxClips?.length) ? `<span class="fx-badge">${track.fxClips.length}</span>` : ''}
+                    </button>
+                </div>` : ''}
+
                 <!-- ✂️ 編集パネル（切り抜き・フェード） -->
                 <div class="part-edit-section">
                     <button class="part-edit-toggle" data-track-id="${track.id}">
@@ -712,6 +721,14 @@ class StudioFlowDAW {
     }
 
     _setupEditPanelEvents(grid) {
+        // 動きFXボタン
+        grid.querySelectorAll('.part-fx-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const track = this.tracks.find(t => t.id === btn.dataset.trackId);
+                if (track) this._showEasyFxPanel(track, btn);
+            });
+        });
+
         // トグルボタン
         grid.querySelectorAll('.part-edit-toggle').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -1264,6 +1281,7 @@ class StudioFlowDAW {
             track.name = clip.name;
 
             this._renderClip(track, clip);
+            this._renderFxLane(track);
             this._updateTrackHeader(track);
             this._updateRuler();
             this._updateMixerUI();
@@ -1347,6 +1365,7 @@ class StudioFlowDAW {
         };
         origTrack.clips.push(origClip);
         this._renderClip(origTrack, origClip);
+        this._renderFxLane(origTrack);
         this._updateTrackHeader(origTrack);
 
         this._updateRuler();
@@ -1732,6 +1751,350 @@ class StudioFlowDAW {
         document.querySelectorAll('.track-canvas-area').forEach(el => el.style.minWidth = canvasMinWidth + 'px');
     }
 
+    // ════════════════════════════════════════════════════════════
+    //  FX クリップシステム（スウィープ・動きエフェクト）
+    // ════════════════════════════════════════════════════════════
+
+    /** FX プリセット定義 */
+    get _fxPresets() {
+        return [
+            { id: 'filter-up',    label: 'フィルター↑',  icon: '🔺', color: '#6366f1', desc: '低音から高音へ開くスウィープ' },
+            { id: 'filter-down',  label: 'フィルター↓',  icon: '🔻', color: '#8b5cf6', desc: '高音から低音へ閉じるスウィープ' },
+            { id: 'volume-rise',  label: '音量ライズ',   icon: '📈', color: '#22c55e', desc: '無音から徐々にフェードイン' },
+            { id: 'volume-fall',  label: '音量フォール', icon: '📉', color: '#ef4444', desc: '徐々にフェードアウト' },
+            { id: 'pan-lr',       label: 'パン L→R',    icon: '◀▶', color: '#f59e0b', desc: '左から右へパン移動' },
+            { id: 'pan-rl',       label: 'パン R→L',    icon: '▶◀', color: '#f59e0b', desc: '右から左へパン移動' },
+            { id: 'wobble',       label: 'ウォブル',     icon: '〜',  color: '#ec4899', desc: 'ガクガク音量揺れ（LFO）' },
+            { id: 'rise-build',   label: 'ライズビルド', icon: '🚀', color: '#06b6d4', desc: 'フィルター＋音量を同時にライズ（盛り上がり）' },
+        ];
+    }
+
+    /** FXクリップのスケジューリング（再生時に呼ぶ） */
+    _scheduleAllFxClips() {
+        const ctx = this.audioEngine.ctx;
+        if (!ctx) return;
+        const offset   = this.audioEngine.pauseTime;
+        const wallStart = this.audioEngine.startTime;
+        const ratio    = this.audioEngine.bpmRatio || 1.0;
+
+        // まず全トラックの自動化パラメーターをリセット
+        this.tracks.forEach(track => {
+            const n = track.nodes;
+            if (!n) return;
+            n.gainNode.gain.cancelScheduledValues(ctx.currentTime);
+            n.gainNode.gain.setValueAtTime(track.muted ? 0 : track.volume, ctx.currentTime);
+            n.panNode.pan.cancelScheduledValues(ctx.currentTime);
+            n.panNode.pan.setValueAtTime(track.pan, ctx.currentTime);
+            if (n.sweepFilter) {
+                n.sweepFilter.frequency.cancelScheduledValues(ctx.currentTime);
+                n.sweepFilter.frequency.setValueAtTime(22050, ctx.currentTime);
+            }
+        });
+
+        this.tracks.forEach(track => {
+            if (!track.fxClips?.length) return;
+            const n = track.nodes;
+            if (!n) return;
+
+            track.fxClips.forEach(fx => {
+                const fxStart = fx.startTime;
+                const fxEnd   = fxStart + fx.duration;
+
+                // 現在位置より前に終わるFXはスキップ
+                if (fxEnd <= offset) return;
+
+                // Wall-clock の開始・終了時刻
+                const wallFxStart = wallStart + Math.max(0, fxStart - offset) / ratio;
+                const wallFxEnd   = wallStart + Math.max(0, fxEnd   - offset) / ratio;
+
+                const baseVol = track.muted ? 0 : (track.volume * (track.clips[0]?._gain || 1));
+
+                switch (fx.type) {
+                    case 'filter-up':
+                        n.sweepFilter.frequency.setValueAtTime(80, wallFxStart);
+                        n.sweepFilter.frequency.exponentialRampToValueAtTime(22050, wallFxEnd);
+                        break;
+                    case 'filter-down':
+                        n.sweepFilter.frequency.setValueAtTime(22050, wallFxStart);
+                        n.sweepFilter.frequency.exponentialRampToValueAtTime(80, wallFxEnd);
+                        // 終了後にリセット
+                        n.sweepFilter.frequency.setValueAtTime(22050, wallFxEnd + 0.01);
+                        break;
+                    case 'volume-rise':
+                        n.gainNode.gain.setValueAtTime(0.001, wallFxStart);
+                        n.gainNode.gain.linearRampToValueAtTime(baseVol, wallFxEnd);
+                        break;
+                    case 'volume-fall':
+                        n.gainNode.gain.setValueAtTime(baseVol, wallFxStart);
+                        n.gainNode.gain.linearRampToValueAtTime(0.001, wallFxEnd);
+                        n.gainNode.gain.setValueAtTime(baseVol, wallFxEnd + 0.01);
+                        break;
+                    case 'pan-lr':
+                        n.panNode.pan.setValueAtTime(-1, wallFxStart);
+                        n.panNode.pan.linearRampToValueAtTime(1, wallFxEnd);
+                        n.panNode.pan.setValueAtTime(track.pan, wallFxEnd + 0.01);
+                        break;
+                    case 'pan-rl':
+                        n.panNode.pan.setValueAtTime(1, wallFxStart);
+                        n.panNode.pan.linearRampToValueAtTime(-1, wallFxEnd);
+                        n.panNode.pan.setValueAtTime(track.pan, wallFxEnd + 0.01);
+                        break;
+                    case 'wobble': {
+                        // 16分音符ごとに音量を上下（LFO的）
+                        const steps = Math.ceil(fx.duration * 8);
+                        for (let i = 0; i <= steps; i++) {
+                            const t = wallFxStart + (i / steps) * (wallFxEnd - wallFxStart);
+                            const v = i % 2 === 0 ? baseVol : baseVol * 0.3;
+                            n.gainNode.gain.setValueAtTime(v, t);
+                        }
+                        n.gainNode.gain.setValueAtTime(baseVol, wallFxEnd + 0.01);
+                        break;
+                    }
+                    case 'rise-build':
+                        n.sweepFilter.frequency.setValueAtTime(80, wallFxStart);
+                        n.sweepFilter.frequency.exponentialRampToValueAtTime(22050, wallFxEnd);
+                        n.gainNode.gain.setValueAtTime(0.001, wallFxStart);
+                        n.gainNode.gain.linearRampToValueAtTime(baseVol, wallFxEnd);
+                        break;
+                }
+            });
+        });
+    }
+
+    /** FXクリップをトラックに追加 */
+    _addFxClip(track, type, startTime, duration) {
+        if (!track.fxClips) track.fxClips = [];
+        const fx = {
+            id: 'fx_' + Date.now(),
+            type,
+            startTime: Math.max(0, startTime),
+            duration: Math.max(0.5, duration),
+        };
+        track.fxClips.push(fx);
+        this._renderFxLane(track);
+        this._saveProject();
+        return fx;
+    }
+
+    /** FXクリップを削除 */
+    _removeFxClip(track, fxId) {
+        if (!track.fxClips) return;
+        track.fxClips = track.fxClips.filter(f => f.id !== fxId);
+        this._renderFxLane(track);
+        this._saveProject();
+    }
+
+    /** 上級者モードのFXレーンを描画（各トラックのcanvasAreaの下） */
+    _renderFxLane(track) {
+        const trackDiv = document.querySelector(`[data-track-id="${track.id}"].track`);
+        if (!trackDiv) return;
+
+        let lane = trackDiv.querySelector('.fx-lane');
+        if (!lane) {
+            lane = document.createElement('div');
+            lane.className = 'fx-lane';
+            trackDiv.querySelector('.track-canvas-area').after(lane);
+        }
+
+        lane.innerHTML = '';
+        lane.style.position = 'relative';
+
+        (track.fxClips || []).forEach(fx => {
+            const preset = this._fxPresets.find(p => p.id === fx.type);
+            if (!preset) return;
+
+            const block = document.createElement('div');
+            block.className = 'fx-clip';
+            block.style.left    = (fx.startTime * this.pixelsPerSecond) + 'px';
+            block.style.width   = (fx.duration  * this.pixelsPerSecond) + 'px';
+            block.style.background = preset.color + 'cc';
+            block.style.borderColor = preset.color;
+            block.title = `${preset.icon} ${preset.label}（ダブルクリックで削除）`;
+            block.innerHTML = `<span class="fx-clip-label">${preset.icon} ${preset.label}</span>`;
+
+            // 右端リサイズハンドル
+            const resizeHandle = document.createElement('div');
+            resizeHandle.className = 'fx-clip-resize';
+            block.appendChild(resizeHandle);
+
+            // ドラッグで位置移動
+            let dragging = false, startX = 0, origLeft = 0;
+            block.addEventListener('mousedown', (e) => {
+                if (e.target === resizeHandle) return;
+                dragging = true; startX = e.clientX;
+                origLeft = fx.startTime * this.pixelsPerSecond;
+                e.preventDefault(); e.stopPropagation();
+            });
+            document.addEventListener('mousemove', (e) => {
+                if (!dragging) return;
+                const newLeft = Math.max(0, origLeft + (e.clientX - startX));
+                fx.startTime = newLeft / this.pixelsPerSecond;
+                block.style.left = newLeft + 'px';
+            });
+            document.addEventListener('mouseup', () => {
+                if (dragging) { dragging = false; this._saveProject(); }
+            });
+
+            // リサイズハンドルで長さ変更
+            let resizing = false, rsX = 0, origW = 0;
+            resizeHandle.addEventListener('mousedown', (e) => {
+                resizing = true; rsX = e.clientX;
+                origW = fx.duration * this.pixelsPerSecond;
+                e.preventDefault(); e.stopPropagation();
+            });
+            document.addEventListener('mousemove', (e) => {
+                if (!resizing) return;
+                const newW = Math.max(20, origW + (e.clientX - rsX));
+                fx.duration = newW / this.pixelsPerSecond;
+                block.style.width = newW + 'px';
+            });
+            document.addEventListener('mouseup', () => {
+                if (resizing) { resizing = false; this._saveProject(); }
+            });
+
+            // ダブルクリックで削除
+            block.addEventListener('dblclick', (e) => {
+                e.stopPropagation();
+                this._removeFxClip(track, fx.id);
+            });
+
+            lane.appendChild(block);
+        });
+
+        // 空レーン上でクリック → FX選択メニュー
+        lane.addEventListener('click', (e) => {
+            if (e.target !== lane) return;
+            const clickTime = (e.offsetX) / this.pixelsPerSecond;
+            this._showFxPickerAt(track, clickTime, lane);
+        });
+    }
+
+    /** FXピッカーポップアップを表示 */
+    _showFxPickerAt(track, clickTime, anchorEl) {
+        document.querySelectorAll('.fx-picker-popup').forEach(p => p.remove());
+
+        const popup = document.createElement('div');
+        popup.className = 'fx-picker-popup';
+        popup.innerHTML = `<div class="fx-picker-title">＋ FXを追加 @ ${this._fmtSec(clickTime)}</div>`;
+
+        this._fxPresets.forEach(preset => {
+            const btn = document.createElement('button');
+            btn.className = 'fx-picker-btn';
+            btn.style.borderLeftColor = preset.color;
+            btn.innerHTML = `<span class="fx-picker-icon">${preset.icon}</span>
+                <span class="fx-picker-info">
+                    <b>${preset.label}</b>
+                    <small>${preset.desc}</small>
+                </span>`;
+            btn.addEventListener('click', () => {
+                this._addFxClip(track, preset.id, clickTime, 4);
+                popup.remove();
+                this._toast(`${preset.icon} ${preset.label} を追加しました`, 'success');
+            });
+            popup.appendChild(btn);
+        });
+
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'fx-picker-close';
+        closeBtn.textContent = '✕';
+        closeBtn.addEventListener('click', () => popup.remove());
+        popup.appendChild(closeBtn);
+
+        document.body.appendChild(popup);
+
+        // アンカー位置に表示
+        const r = anchorEl.getBoundingClientRect();
+        popup.style.top  = (r.bottom + window.scrollY) + 'px';
+        popup.style.left = Math.min(r.left + window.scrollX, window.innerWidth - 320) + 'px';
+
+        setTimeout(() => document.addEventListener('click', function dismiss(ev) {
+            if (!popup.contains(ev.target)) { popup.remove(); document.removeEventListener('click', dismiss); }
+        }), 100);
+    }
+
+    /** かんたんモードのFXクイックパネルを表示 */
+    _showEasyFxPanel(track, anchorEl) {
+        document.querySelectorAll('.easy-fx-popup').forEach(p => p.remove());
+
+        const totalDur = track.clips[0]?.buffer?.duration || 60;
+        const popup = document.createElement('div');
+        popup.className = 'easy-fx-popup';
+
+        popup.innerHTML = `
+            <div class="easy-fx-title">🎛 動きFX — ${escapeHtml(track.name)}</div>
+            <div class="easy-fx-presets">
+                ${this._fxPresets.map(p =>
+                    `<button class="easy-fx-preset-btn" data-fx="${p.id}"
+                        style="border-color:${p.color};color:${p.color}"
+                        title="${p.desc}">
+                        ${p.icon} ${p.label}
+                    </button>`
+                ).join('')}
+            </div>
+            <div class="easy-fx-controls">
+                <label>開始位置 <span id="efx-pos-val">0秒</span></label>
+                <input type="range" id="efx-pos" min="0" max="${(totalDur * 0.9).toFixed(1)}" step="0.1" value="0">
+                <label>長さ <span id="efx-dur-val">4秒</span></label>
+                <input type="range" id="efx-dur" min="0.5" max="${Math.min(30, totalDur).toFixed(1)}" step="0.5" value="4">
+            </div>
+            <div class="easy-fx-list" id="efx-list"></div>
+            <button class="easy-fx-close">✕ 閉じる</button>
+        `;
+        document.body.appendChild(popup);
+
+        // アンカー位置
+        const r = anchorEl.getBoundingClientRect();
+        popup.style.top  = (r.bottom + window.scrollY + 4) + 'px';
+        popup.style.left = Math.min(r.left + window.scrollX, window.innerWidth - 340) + 'px';
+
+        const posSlider = popup.querySelector('#efx-pos');
+        const durSlider = popup.querySelector('#efx-dur');
+        const posVal    = popup.querySelector('#efx-pos-val');
+        const durVal    = popup.querySelector('#efx-dur-val');
+        const list      = popup.querySelector('#efx-list');
+
+        const _refreshList = () => {
+            list.innerHTML = (track.fxClips || []).map(fx => {
+                const p = this._fxPresets.find(x => x.id === fx.type);
+                return `<div class="efx-item" style="border-left-color:${p?.color}">
+                    ${p?.icon} ${p?.label} @ ${this._fmtSec(fx.startTime)} / ${fx.duration.toFixed(1)}s
+                    <button class="efx-remove" data-fxid="${fx.id}">✕</button>
+                </div>`;
+            }).join('') || '<small>まだFXがありません</small>';
+
+            list.querySelectorAll('.efx-remove').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    this._removeFxClip(track, btn.dataset.fxid);
+                    _refreshList();
+                });
+            });
+        };
+
+        posSlider.addEventListener('input', () => posVal.textContent = parseFloat(posSlider.value).toFixed(1) + '秒');
+        durSlider.addEventListener('input', () => durVal.textContent = parseFloat(durSlider.value).toFixed(1) + '秒');
+
+        popup.querySelectorAll('.easy-fx-preset-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const pos = parseFloat(posSlider.value);
+                const dur = parseFloat(durSlider.value);
+                this._addFxClip(track, btn.dataset.fx, pos, dur);
+                _refreshList();
+                const p = this._fxPresets.find(x => x.id === btn.dataset.fx);
+                this._toast(`${p.icon} ${p.label} を追加しました`, 'success');
+            });
+        });
+
+        popup.querySelector('.easy-fx-close').addEventListener('click', () => popup.remove());
+        _refreshList();
+    }
+
+    /** 全トラックのFXレーンを更新（ズーム変更時など） */
+    _refreshAllFxLanes() {
+        this.tracks.forEach(t => {
+            if (t.fxClips?.length) this._renderFxLane(t);
+        });
+    }
+
     _setZoom(newPps) {
         const oldPps = this.pixelsPerSecond;
         this.pixelsPerSecond = Math.max(10, Math.min(800, newPps));
@@ -1755,6 +2118,7 @@ class StudioFlowDAW {
 
         this._updateCanvasAreaWidths();
         this._updateRuler();
+        this._refreshAllFxLanes();
 
         // 波形を新しいズームで再描画
         this.tracks.forEach(track => {
@@ -2365,6 +2729,7 @@ class StudioFlowDAW {
             } else {
                 // 停止 or 一時停止中 → 再生 / 再開
                 this.audioEngine.play(this.tracks);
+                this._scheduleAllFxClips();
                 _setPauseIcon();
             }
         });
