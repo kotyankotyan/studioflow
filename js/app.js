@@ -644,18 +644,16 @@ class StudioFlowDAW {
                 else bar.style.background = '#22c55e';
             });
 
-            const id = requestAnimationFrame(updateMeters);
-            this._meterRAF2 = id;
-            this._meterRAF2List.push(id);
+            // ループIDは1件だけ保持（pushしてリストを無限に増やさない）
+            this._meterRAF2 = requestAnimationFrame(updateMeters);
         };
-        const id = requestAnimationFrame(updateMeters);
-        this._meterRAF2 = id;
-        this._meterRAF2List.push(id);
+        this._meterRAF2 = requestAnimationFrame(updateMeters);
     }
 
     /** 秒を "0:00.0" 表示に変換 */
     _fmtSec(sec) {
         const s = parseFloat(sec);
+        if (isNaN(s)) return '0:00.0';
         const m = Math.floor(s / 60);
         const r = (s % 60).toFixed(1).padStart(4, '0');
         return `${m}:${r}`;
@@ -809,6 +807,7 @@ class StudioFlowDAW {
 
         track.clips[0].buffer   = track._originalBuffer;
         track.clips[0].duration = track._originalBuffer.duration;
+        track.clips[0]._saved   = false; // リセット後も再保存させる
         track._originalBuffer   = null;
         track._editStart = 0;
         track._editEnd   = track.clips[0].duration;
@@ -878,6 +877,8 @@ class StudioFlowDAW {
                 track.clips[0].buffer = track._msOriginalBuffer;
                 if (this.audioEngine.isPlaying) {
                     const wasAt = this.audioEngine.getCurrentTime();
+                    this.audioEngine.stop();
+                    this.audioEngine.seek(wasAt);
                     this.audioEngine.play(this.tracks);
                 }
                 // 波形再描画
@@ -1073,7 +1074,7 @@ class StudioFlowDAW {
             name: name || `トラック ${this.tracks.length + 1}`,
             color,
             clips: [],
-            volume: 0.8,
+            volume: 0.85,
             pan: 0,
             muted: false,
             solo: false,
@@ -1853,8 +1854,10 @@ class StudioFlowDAW {
         }
         clip.buffer = newBuffer;
         clip.duration = newBuffer.duration;
+        clip._saved = false; // 編集後のバッファを再保存させる
         this._renderClip(track, clip);
         this._updateCanvasAreaWidths?.();
+        this._saveProject(); // 即時保存
         if (this.easyMode) this._renderEasyCards?.();
         if (wasPlaying) this._toast('適用しました。▶ 再生で確認できます', 'info');
     }
@@ -2092,6 +2095,9 @@ class StudioFlowDAW {
             this.audioEngine.loopEnabled = !this.audioEngine.loopEnabled;
             e.currentTarget.classList.toggle('active', this.audioEngine.loopEnabled);
         });
+
+        document.getElementById('btn-undo').addEventListener('click', () => this._toast('Undo機能は近日実装予定', 'info'));
+        document.getElementById('btn-redo').addEventListener('click', () => this._toast('Redo機能は近日実装予定', 'info'));
 
         document.getElementById('btn-add-track').addEventListener('click', () => {
             this.addTrack();
@@ -2485,8 +2491,7 @@ class StudioFlowDAW {
             try {
                 const mixedBuffer = await this.remix.renderMix();
                 if (mixedBuffer) {
-                    const track = this.tracks.find(t => t.clips.length === 0) || this.addTrack('リミックス');
-                    track.name = 'リミックス';
+                    const track = this.addTrack('リミックス');
                     const clip = { id: 'clip_remix_' + Date.now(), name: 'リミックス', buffer: mixedBuffer, startTime: 0, duration: mixedBuffer.duration, offset: 0 };
                     track.clips.push(clip);
                     this._renderClip(track, clip);
@@ -2606,6 +2611,12 @@ class StudioFlowDAW {
                 case 'Space':
                     e.preventDefault();
                     document.getElementById('btn-play').click();
+                    break;
+                case 'KeyZ':
+                    if (e.ctrlKey || e.metaKey) { e.preventDefault(); document.getElementById('btn-undo').click(); }
+                    break;
+                case 'KeyY':
+                    if (e.ctrlKey || e.metaKey) { e.preventDefault(); document.getElementById('btn-redo').click(); }
                     break;
                 case 'Home': this.audioEngine.seek(0); this._updatePlayhead(0); break;
                 case 'Delete': case 'Backspace':
