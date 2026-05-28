@@ -185,27 +185,52 @@ class CreatorEngine {
             return buffer;
         }
 
-        // OfflineAudioContextを使ってメインスレッドをブロックしない
         const sr = buffer.sampleRate;
         const len = buffer.length;
-        const offCtx = new OfflineAudioContext(2, len, sr);
-
-        // M/S処理はWeb Audio APIのフィルタでは直接できないため、
-        // サンプル処理をチャンク分割してメインスレッドへの負担を分散する
         const L = buffer.getChannelData(0);
         const R = buffer.getChannelData(1);
-        const midFactor = 1.0 - reduction;
 
-        // チャンク処理（44100サンプル≒1秒ごとにyield）
+        // ボーカル帯域（200Hz〜5500Hz）のみMidを削減し、
+        // 低音（ベース・キック）と高音（シンバル）は維持する。
+        // IIRハイパスフィルタ（カットオフ≈200Hz）とローパスフィルタ（カットオフ≈5500Hz）で
+        // ボーカル帯域を抽出し、その成分だけ reduction を適用する。
+
+        // ハイパスフィルタ係数（α = exp(-2π·fc/sr)）
+        const hpAlpha  = Math.exp(-2 * Math.PI * 200  / sr); // 200Hz
+        const lpAlpha  = Math.exp(-2 * Math.PI * 5500 / sr); // 5500Hz
+
+        // ミドルシグナル用フィルタ状態
+        let hpStateM = 0; // ハイパス state
+        let lpStateM = 0; // ローパス state
+        let hpStateS = 0; // サイド用ハイパス（位相整合用）
+        let lpStateS = 0;
+
         const outL = new Float32Array(len);
         const outR = new Float32Array(len);
+        const midFactor = 1.0 - reduction; // ボーカル帯域の削減量
+
         const chunkSize = 44100;
         for (let i = 0; i < len; i += chunkSize) {
             const end = Math.min(i + chunkSize, len);
             for (let j = i; j < end; j++) {
                 const mid  = (L[j] + R[j]) * 0.5;
                 const side = (L[j] - R[j]) * 0.5;
-                const reducedMid = mid * midFactor;
+
+                // ボーカル帯域 Mid = バンドパス(mid)
+                // ハイパス: 200Hz以下を除去
+                hpStateM = hpAlpha * hpStateM + (1 - hpAlpha) * mid;
+                const midHp = mid - hpStateM; // ≥200Hz
+                // ローパス: 5500Hz以上を除去
+                lpStateM = lpAlpha * lpStateM + (1 - lpAlpha) * midHp;
+                const midVocalBand = lpStateM; // 200〜5500Hz（ボーカル帯域）
+
+                // 低音Mid（保持）＋高音Mid（保持）= mid全体 - ボーカル帯域
+                const midNonVocal = mid - midVocalBand;
+
+                // ボーカル帯域のみ削減し、その他は元のまま
+                const reducedMid = midNonVocal + midVocalBand * midFactor;
+
+                // サイドはそのまま（ステレオ感を保持）
                 outL[j] = reducedMid + side;
                 outR[j] = reducedMid - side;
             }
@@ -213,7 +238,6 @@ class CreatorEngine {
             await new Promise(r => setTimeout(r, 0));
         }
 
-        // OfflineContextでバッファを作成して返す
         const out = this.engine.ctx.createBuffer(2, len, sr);
         out.getChannelData(0).set(outL);
         out.getChannelData(1).set(outR);

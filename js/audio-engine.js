@@ -19,6 +19,8 @@ class AudioEngine {
         this.sources = [];
         this.tracks = [];
         this.bpm = 120;
+        this.originalBpm = 120;  // ファイルロード時に検出したBPM
+        this.bpmRatio = 1.0;     // 再生速度比率 = bpm / originalBpm
         this.onTimeUpdate = null;
         this._rafId = null;
     }
@@ -187,6 +189,8 @@ class AudioEngine {
                 const sourceOffset = Math.max(0, offset - clipStart);
                 const when = Math.max(0, clipStart - offset);
 
+                // BPM変更に応じて再生速度を変える（varispeed: テンポ＆ピッチ同時変化）
+                source.playbackRate.value = this.bpmRatio || 1.0;
                 source.start(this.ctx.currentTime + when, sourceOffset);
                 this.sources.push(source);
             });

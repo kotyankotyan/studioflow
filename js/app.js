@@ -154,6 +154,10 @@ class StudioFlowDAW {
             this._clearProject();
         });
 
+        document.getElementById('btn-easy-reset').addEventListener('click', () => {
+            this._resetAllToDefaults();
+        });
+
         // Toggle advanced mode
         document.getElementById('btn-toggle-advanced').addEventListener('click', () => {
             this._switchToAdvanced();
@@ -411,13 +415,18 @@ class StudioFlowDAW {
 
             grid.appendChild(card);
 
-            // Draw mini waveform after appending
-            requestAnimationFrame(() => {
+            // Draw mini waveform: width>0になるまでリトライ（display:none / 背景タブ対策）
+            const _tryDrawCard = (attempts) => {
                 const canvas = card.querySelector('canvas');
-                if (canvas && track.clips[0]?.buffer) {
+                if (!canvas || !track.clips[0]?.buffer) return;
+                const r = canvas.getBoundingClientRect();
+                if (r.width > 0) {
                     this.waveform.drawClipWaveform(canvas, track.clips[0].buffer, 0, track.clips[0].duration);
+                } else if (attempts < 20) {
+                    setTimeout(() => _tryDrawCard(attempts + 1), 100);
                 }
-            });
+            };
+            setTimeout(() => _tryDrawCard(0), 0);
         });
 
         area.appendChild(grid);
@@ -941,6 +950,79 @@ class StudioFlowDAW {
         badge.dataset.level = pct >= 50 ? 'high' : pct >= 15 ? 'mid' : 'low';
     }
 
+    /** 全トラックの設定を初期状態（デフォルト）にリセットする */
+    _resetAllToDefaults() {
+        if (!confirm('全トラックの音量・EQ・エフェクト・ボーカル除去を初期状態に戻しますか？\n（音源ファイル自体は削除されません）')) return;
+
+        const now = this.audioEngine.ctx.currentTime;
+
+        this.tracks.forEach(track => {
+            if (!track.clips.length) return;
+
+            // オリジナルバッファを復元（バッファ編集・ボーカル除去の取り消し）
+            const origBuf = track._msOriginalBuffer || track._originalBuffer;
+            if (origBuf) {
+                track.clips[0].buffer = origBuf;
+                track.clips[0].duration = origBuf.duration;
+                track._saved = false;
+            }
+
+            // パラメータをデフォルト値にリセット
+            track.volume  = 0.85;
+            track.pan     = 0;
+            track.muted   = false;
+            track._eqLow  = 0;
+            track._eqMid  = 0;
+            track._eqHigh = 0;
+            track._easyReverb        = 0;
+            track._msVocalReduction  = 0;
+            track._editStart = 0;
+            track._editEnd   = track.clips[0]?.buffer?.duration || 0;
+            track._editFadeIn  = 0;
+            track._editFadeOut = 0;
+
+            // Web Audio ノードに即座に反映
+            if (!track.muted) track.nodes.gainNode.gain.setValueAtTime(0.85, now);
+            track.nodes.panNode.pan.setValueAtTime(0, now);
+            if (track.nodes.eqLow)  track.nodes.eqLow.gain.setValueAtTime(0, now);
+            if (track.nodes.eqMid)  track.nodes.eqMid.gain.setValueAtTime(0, now);
+            if (track.nodes.eqHigh) track.nodes.eqHigh.gain.setValueAtTime(0, now);
+            if (track.nodes.reverbWet) {
+                track.nodes.reverbWet.gain.setValueAtTime(0, now);
+                track.nodes.reverbDry.gain.setValueAtTime(1, now);
+            }
+        });
+
+        // マスターEQもリセット
+        ['low', 'lowmid', 'mid', 'highmid', 'high'].forEach(band => {
+            this.audioEngine.setMasterEQ(band, 0);
+        });
+
+        // BPMを元のBPMに戻す
+        this.audioEngine.bpm = this.audioEngine.originalBpm || 120;
+        this.audioEngine.bpmRatio = 1.0;
+        const bpmInput = document.getElementById('bpm-input');
+        if (bpmInput) bpmInput.value = this.audioEngine.bpm;
+
+        // 再生中なら再起動して変更を反映
+        if (this.audioEngine.isPlaying) {
+            const wasAt = this.audioEngine.getCurrentTime();
+            this.audioEngine.stop();
+            this.audioEngine.seek(wasAt);
+            this.audioEngine.play(this.tracks);
+        }
+
+        this._renderEasyCards();
+        // アドバンスモードのクリップ波形を再描画
+        this.tracks.forEach(track => {
+            track.clips.forEach(clip => {
+                if (clip.buffer) this._renderClip(track, clip);
+            });
+        });
+        this._updateMixerUI();
+        this._toast('✅ 全設定を初期状態に戻しました', 'success');
+    }
+
     async _clearProject() {
         if (!confirm('現在の曲データをすべて削除しますか？\n（この操作は元に戻せません）')) return;
 
@@ -1170,6 +1252,16 @@ class StudioFlowDAW {
         mixTrack._msVocalReduction = 0;
         mixTrack._isAIMix = true;
 
+        // BPM自動検出（ロード後にUIを更新）
+        try {
+            const detectedBpm = this.creator.detectBpm(audioBuffer);
+            this.audioEngine.originalBpm = detectedBpm;
+            this.audioEngine.bpm = detectedBpm;
+            this.audioEngine.bpmRatio = 1.0;
+            const bpmInput = document.getElementById('bpm-input');
+            if (bpmInput) bpmInput.value = detectedBpm;
+        } catch(e) { /* BPM検出失敗は無視 */ }
+
         const mixClip = {
             id: 'clip_mix_' + Date.now(),
             name: songName,
@@ -1368,14 +1460,16 @@ class StudioFlowDAW {
         this._setupClipDrag(clipDiv, track, clip);
         canvasArea.appendChild(clipDiv);
 
-        // 描画: 表示中なら即時、非表示（advanced-modeが隠れている）なら_switchToAdvancedのタイマーで再描画
-        setTimeout(() => {
+        // 描画: width>0 になるまで最大20回リトライ（display:none / 背景タブ対策）
+        const _tryDrawClip = (attempts) => {
             const r = clipCanvas.getBoundingClientRect();
             if (r.width > 0) {
                 this.waveform.drawClipWaveform(clipCanvas, clip.buffer, clip.offset || 0, clip.duration);
+            } else if (attempts < 20) {
+                setTimeout(() => _tryDrawClip(attempts + 1), 100);
             }
-            // r.width === 0 の場合は _switchToAdvanced の再描画タイマーに任せる
-        }, 0);
+        };
+        setTimeout(() => _tryDrawClip(0), 0);
         this._updateCanvasAreaWidths();
     }
 
@@ -2553,7 +2647,18 @@ class StudioFlowDAW {
             modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.add('hidden'); });
         });
 
-        document.getElementById('bpm-input').addEventListener('change', (e) => { this.audioEngine.bpm = parseInt(e.target.value) || 120; });
+        document.getElementById('bpm-input').addEventListener('change', (e) => {
+            const newBpm = parseInt(e.target.value) || 120;
+            this.audioEngine.bpm = newBpm;
+            this.audioEngine.bpmRatio = newBpm / (this.audioEngine.originalBpm || 120);
+            // 再生中なら即座に速度を反映
+            if (this.audioEngine.isPlaying) {
+                this.audioEngine.sources.forEach(src => {
+                    try { src.playbackRate.value = this.audioEngine.bpmRatio; } catch(e) {}
+                });
+            }
+            this._toast(`BPM: ${this.audioEngine.originalBpm || 120} → ${newBpm} (速度 ${(this.audioEngine.bpmRatio * 100).toFixed(0)}%)`, 'info');
+        });
 
         document.getElementById('timeline-ruler').addEventListener('click', (e) => {
             const x = e.clientX - e.currentTarget.getBoundingClientRect().left + this.scrollOffset;
