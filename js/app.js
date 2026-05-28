@@ -178,8 +178,8 @@ class StudioFlowDAW {
         this._updateMixerUI();
         this._updateRuler();
         this.automation.draw();
-        // 非表示中に追加されたクリップの波形を再描画（ダブルRAFでレイアウト確定後に実行）
-        requestAnimationFrame(() => requestAnimationFrame(() => {
+        // 非表示中に追加されたクリップの波形を再描画（display:none解除後にレイアウト確定するまで待つ）
+        setTimeout(() => {
             this.tracks.forEach(track => {
                 track.clips.forEach(clip => {
                     if (!clip.buffer) return;
@@ -189,7 +189,7 @@ class StudioFlowDAW {
                     if (canvas) this.waveform.drawClipWaveform(canvas, clip.buffer, clip.offset || 0, clip.duration);
                 });
             });
-        }));
+        }, 50);
     }
 
     _switchToEasy() {
@@ -1367,9 +1367,14 @@ class StudioFlowDAW {
         this._setupClipDrag(clipDiv, track, clip);
         canvasArea.appendChild(clipDiv);
 
-        requestAnimationFrame(() => {
-            this.waveform.drawClipWaveform(clipCanvas, clip.buffer, clip.offset || 0, clip.duration);
-        });
+        // 描画: 表示中なら即時、非表示（advanced-modeが隠れている）なら_switchToAdvancedのタイマーで再描画
+        setTimeout(() => {
+            const r = clipCanvas.getBoundingClientRect();
+            if (r.width > 0) {
+                this.waveform.drawClipWaveform(clipCanvas, clip.buffer, clip.offset || 0, clip.duration);
+            }
+            // r.width === 0 の場合は _switchToAdvanced の再描画タイマーに任せる
+        }, 0);
         this._updateCanvasAreaWidths();
     }
 
