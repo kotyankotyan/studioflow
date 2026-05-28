@@ -1828,6 +1828,7 @@ body {
 .toast.success { border-left: 3px solid var(--accent-green); }
 .toast.error { border-left: 3px solid var(--accent); }
 .toast.info { border-left: 3px solid var(--accent-secondary); }
+.toast.warning { border-left: 3px solid #eab308; }
 
 @keyframes toast-in {
     from { transform: translateX(100%); opacity: 0; }

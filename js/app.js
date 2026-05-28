@@ -2923,11 +2923,11 @@ class StudioFlowDAW {
         }
     }
 
-    _toast(message, type = 'info') {
+    _toast(message, type = 'info', duration = 3500) {
         const container = document.getElementById('toast-container');
         const toast = document.createElement('div');
         toast.className = `toast ${type}`;
-        const icons = { success: 'check-circle', error: 'exclamation-circle', info: 'info-circle' };
+        const icons = { success: 'check-circle', error: 'exclamation-circle', info: 'info-circle', warning: 'exclamation-triangle' };
         toast.innerHTML = `<i class="fas fa-${icons[type] || 'info-circle'}"></i> ${escapeHtml(message)}`;
         container.appendChild(toast);
         setTimeout(() => {
@@ -2935,7 +2935,7 @@ class StudioFlowDAW {
             toast.style.transform = 'translateX(100%)';
             toast.style.transition = '0.3s ease';
             setTimeout(() => toast.remove(), 300);
-        }, 3500);
+        }, duration);
     }
 }
 
@@ -3036,6 +3036,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     function startApp() {
         window.daw = new StudioFlowDAW();
         window.daw.init();
+
+        // デフォルトパスワード使用中の警告
+        (async () => {
+            const currentHash = localStorage.getItem(auth.PW_HASH_KEY) || auth.DEFAULT_HASH;
+            if (currentHash === auth.DEFAULT_HASH) {
+                setTimeout(() => {
+                    window.daw._toast('⚠️ デフォルトパスワードを使用中です。設定からパスワードを変更してください。', 'warning', 6000);
+                }, 2000);
+            }
+        })();
 
         // ログアウトボタン
         document.getElementById('btn-logout').addEventListener('click', () => {
