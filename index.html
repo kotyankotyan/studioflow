@@ -1,39 +1,39 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>StudioFlow DAW</title>
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' https://fonts.googleapis.com https://cdnjs.cloudflare.com 'unsafe-inline'; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; script-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self'; worker-src blob:;">
-    <link rel="stylesheet" href="css/styles.css?v=de82261">
+    <link rel="stylesheet" href="css/styles.css?v=9bcbb38">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-Avb2QiuDEEvB4bZJYdft2mNjVShBftLdPG8FJ0V7irTLQ8Uo0qcPxh4Plq7G5tGm0rU+1SPhVotteLpBERwTkw==" crossorigin="anonymous" referrerpolicy="no-referrer">
 </head>
 <body>
-    <!-- 繝ｭ繧ｰ繧､繝ｳ逕ｻ髱｢ -->
+    <!-- ログイン画面 -->
     <div id="login-screen">
         <div class="login-box">
             <div class="login-logo">
                 <i class="fas fa-music"></i>
                 <h1>StudioFlow</h1>
-                <p>繝励Λ繧､繝吶・繝磯浹讌ｽ蛻ｶ菴懊ヤ繝ｼ繝ｫ</p>
+                <p>プライベート音楽制作ツール</p>
             </div>
             <form id="login-form">
                 <div class="login-field">
-                    <label>繝代せ繝ｯ繝ｼ繝・/label>
+                    <label>パスワード</label>
                     <div class="password-input-wrap">
-                        <input type="password" id="login-password" placeholder="繝代せ繝ｯ繝ｼ繝峨ｒ蜈･蜉・ autocomplete="current-password">
+                        <input type="password" id="login-password" placeholder="パスワードを入力" autocomplete="current-password">
                         <button type="button" id="btn-toggle-pw" tabindex="-1">
                             <i class="fas fa-eye"></i>
                         </button>
                     </div>
                 </div>
-                <p id="login-error" class="login-error hidden">繝代せ繝ｯ繝ｼ繝峨′驕輔＞縺ｾ縺・/p>
+                <p id="login-error" class="login-error hidden">パスワードが違います</p>
                 <button type="submit" id="btn-login" class="login-btn">
-                    <i class="fas fa-unlock"></i> 繝ｭ繧ｰ繧､繝ｳ
+                    <i class="fas fa-unlock"></i> ログイン
                 </button>
             </form>
-            <p class="login-hint">7譌･髢薙Ο繧ｰ繧､繝ｳ迥ｶ諷九ｒ邯ｭ謖√＠縺ｾ縺・/p>
+            <p class="login-hint">7日間ログイン状態を維持します</p>
         </div>
     </div>
 
@@ -45,10 +45,10 @@
                 <span>StudioFlow</span>
             </div>
             <div class="transport-controls">
-                <button id="btn-rewind" title="蜈磯ｭ縺ｫ謌ｻ縺呻ｼ・ome・・><i class="fas fa-backward"></i></button>
-                <button id="btn-play" title="蜀咲函 / 荳譎ょ●豁｢・・pace・・><i class="fas fa-play"></i></button>
-                <button id="btn-stop" title="蛛懈ｭ｢縺励※蜈磯ｭ縺ｫ謌ｻ繧・><i class="fas fa-stop"></i></button>
-                <button id="btn-loop" title="繝ｫ繝ｼ繝怜・逕滂ｼ唹N/OFF蛻・崛"><i class="fas fa-repeat"></i></button>
+                <button id="btn-rewind" title="先頭に戻す（Home）"><i class="fas fa-backward"></i></button>
+                <button id="btn-play" title="再生 / 一時停止（Space）"><i class="fas fa-play"></i></button>
+                <button id="btn-stop" title="停止して先頭に戻る"><i class="fas fa-stop"></i></button>
+                <button id="btn-loop" title="ループ再生：ON/OFF切替"><i class="fas fa-repeat"></i></button>
                 <div class="time-display">
                     <span id="current-time">00:00.000</span>
                     <span class="separator">/</span>
@@ -60,13 +60,14 @@
                 </div>
             </div>
             <div class="top-actions">
-                <button id="btn-back-to-easy" class="back-easy-btn hidden" title="縺九ｓ縺溘ｓ繝｢繝ｼ繝峨↓謌ｻ繧具ｼ医せ繝ｩ繧､繝繝ｼ縺ｧ邁｡蜊倩ｪｿ謨ｴ・・>
-                    <i class="fas fa-arrow-left"></i> 縺九ｓ縺溘ｓ繝｢繝ｼ繝・                </button>
-                <button id="btn-undo" title="蜈・↓謌ｻ縺呻ｼ・trl+Z・・><i class="fas fa-undo"></i></button>
-                <button id="btn-redo" title="繧・ｊ逶ｴ縺暦ｼ・trl+Y・・><i class="fas fa-redo"></i></button>
-                <button id="btn-export" title="繝溘ャ繧ｯ繧ｹ繧淡AV/MP3縺ｧ譖ｸ縺榊・縺・ class="export-btn-top"><i class="fas fa-download"></i> 譖ｸ縺榊・縺・/button>
-                <button id="btn-settings" title="繝代せ繝ｯ繝ｼ繝牙､画峩繝ｻ險ｭ螳・><i class="fas fa-cog"></i></button>
-                <button id="btn-logout" title="繝ｭ繧ｰ繧｢繧ｦ繝・><i class="fas fa-sign-out-alt"></i></button>
+                <button id="btn-back-to-easy" class="back-easy-btn hidden" title="かんたんモードに戻る（スライダーで簡単調整）">
+                    <i class="fas fa-arrow-left"></i> かんたんモード
+                </button>
+                <button id="btn-undo" title="元に戻す（Ctrl+Z）"><i class="fas fa-undo"></i></button>
+                <button id="btn-redo" title="やり直し（Ctrl+Y）"><i class="fas fa-redo"></i></button>
+                <button id="btn-export" title="ミックスをWAV/MP3で書き出す" class="export-btn-top"><i class="fas fa-download"></i> 書き出し</button>
+                <button id="btn-settings" title="パスワード変更・設定"><i class="fas fa-cog"></i></button>
+                <button id="btn-logout" title="ログアウト"><i class="fas fa-sign-out-alt"></i></button>
             </div>
         </header>
 
@@ -78,17 +79,17 @@
             <div class="step-indicator">
                 <div class="step active" data-step="1">
                     <div class="step-number">1</div>
-                    <span>繧｢繝・・繝ｭ繝ｼ繝・/span>
+                    <span>アップロード</span>
                 </div>
                 <div class="step-line"></div>
                 <div class="step" data-step="2">
                     <div class="step-number">2</div>
-                    <span>隱ｿ謨ｴ縺吶ｋ</span>
+                    <span>調整する</span>
                 </div>
                 <div class="step-line"></div>
                 <div class="step" data-step="3">
                     <div class="step-number">3</div>
-                    <span>譖ｸ縺榊・縺・/span>
+                    <span>書き出し</span>
                 </div>
             </div>
 
@@ -97,13 +98,15 @@
                 <!-- Populated after import -->
                 <div id="easy-empty-state">
                     <i class="fas fa-cloud-upload-alt fa-3x"></i>
-                    <h2>譖ｲ繧偵い繝・・繝ｭ繝ｼ繝峨＠繧医≧</h2>
-                    <p>髻ｳ讌ｽ繝輔ぃ繧､繝ｫ繧偵い繝・・繝ｭ繝ｼ繝峨☆繧九→縲・br>繝懊・繧ｫ繝ｫ繝ｻ繝峨Λ繝繝ｻ繝吶・繧ｹ縺ｪ縺ｩ縺ｫ閾ｪ蜍輔〒蛻・￠縺ｾ縺吶・br>縺ゅ→縺ｯ繧ｹ繝ｩ繧､繝繝ｼ縺ｧ螂ｽ縺ｿ縺ｫ隱ｿ謨ｴ縺吶ｋ縺縺托ｼ・/p>
+                    <h2>曲をアップロードしよう</h2>
+                    <p>音楽ファイルをアップロードすると、<br>ボーカル・ドラム・ベースなどに自動で分けます。<br>あとはスライダーで好みに調整するだけ！</p>
                     <button id="btn-easy-import" class="big-import-btn">
-                        <i class="fas fa-cloud-upload-alt"></i> 譖ｲ繧偵い繝・・繝ｭ繝ｼ繝・                    </button>
+                        <i class="fas fa-cloud-upload-alt"></i> 曲をアップロード
+                    </button>
                     <button id="btn-easy-demo" class="demo-btn">
-                        <i class="fas fa-play-circle"></i> 繝・Δ縺ｧ隧ｦ縺・                    </button>
-                    <p class="file-hint">MP3, WAV, FLAC, OGG, AAC 縺ｫ蟇ｾ蠢・/p>
+                        <i class="fas fa-play-circle"></i> デモで試す
+                    </button>
+                    <p class="file-hint">MP3, WAV, FLAC, OGG, AAC に対応</p>
                 </div>
             </div>
 
@@ -111,35 +114,35 @@
             <div id="easy-action-bar" class="hidden">
                 <!-- Row 1: main actions -->
                 <div class="action-bar-row action-bar-row-main">
-                    <button id="btn-easy-reimport" class="abar-btn abar-secondary" title="蛻･縺ｮ譖ｲ繧定ｪｭ縺ｿ霎ｼ繧・育樟蝨ｨ縺ｮ邱ｨ髮・・荳頑嶌縺阪＆繧後∪縺呻ｼ・>
-                        <i class="fas fa-cloud-upload-alt"></i><span>蛻･縺ｮ譖ｲ</span>
+                    <button id="btn-easy-reimport" class="abar-btn abar-secondary" title="別の曲を読み込む（現在の編集は上書きされます）">
+                        <i class="fas fa-cloud-upload-alt"></i><span>別の曲</span>
                     </button>
-                    <button id="btn-easy-preset" class="abar-btn abar-preset" title="繝励Μ繧ｻ繝・ヨ・壹・繝・・繝ｻ繝ｭ繝・け繝ｻEDM縺ｪ縺ｩ髻ｳ讌ｽ繧ｸ繝｣繝ｳ繝ｫ縺ｫ蜷医▲縺溯ｨｭ螳壹ｒ荳諡ｬ驕ｩ逕ｨ">
-                        <i class="fas fa-magic"></i><span>繝励Μ繧ｻ繝・ヨ</span>
+                    <button id="btn-easy-preset" class="abar-btn abar-preset" title="プリセット：ポップ・ロック・EDMなど音楽ジャンルに合った設定を一括適用">
+                        <i class="fas fa-magic"></i><span>プリセット</span>
                     </button>
-                    <button id="btn-easy-compare" class="abar-btn abar-compare" title="蜴滓峇縺ｨ豈碑ｼ・ｼ夂ｷｨ髮・燕縺ｮ髻ｳ縺ｨ閨ｴ縺肴ｯ斐∋繧具ｼ亥・逕滉ｸｭ縺ｫ蛻・ｊ譖ｿ縺亥庄・・>
-                        <i class="fas fa-exchange-alt"></i><span>蜴滓峇縺ｨ豈碑ｼ・/span>
+                    <button id="btn-easy-compare" class="abar-btn abar-compare" title="原曲と比較：編集前の音と聴き比べる（再生中に切り替え可）">
+                        <i class="fas fa-exchange-alt"></i><span>原曲と比較</span>
                     </button>
-                    <button id="btn-easy-reset" class="abar-btn abar-reset" title="蛻晄悄迥ｶ諷九↓謌ｻ縺呻ｼ夐浹驥上・EQ繝ｻ繧ｨ繝輔ぉ繧ｯ繝医・繝懊・繧ｫ繝ｫ髯､蜴ｻ繧偵☆縺ｹ縺ｦ繝・ヵ繧ｩ繝ｫ繝医↓繝ｪ繧ｻ繝・ヨ">
-                        <i class="fas fa-undo-alt"></i><span>蛻晄悄蛹・/span>
+                    <button id="btn-easy-reset" class="abar-btn abar-reset" title="初期状態に戻す：音量・EQ・エフェクト・ボーカル除去をすべてデフォルトにリセット">
+                        <i class="fas fa-undo-alt"></i><span>初期化</span>
                     </button>
                     <div class="abar-spacer"></div>
-                    <button id="btn-easy-creator" class="abar-btn abar-creator" title="邏譚舌ｒ菴懊ｋ・壹Ν繝ｼ繝怜刈蟾･繝ｻ繝懊・繧ｫ繝ｫ髯､蜴ｻ繝ｻBPM螟画鋤縺ｧBooth雋ｩ螢ｲ逕ｨ繝輔ぃ繧､繝ｫ繧堤函謌・>
-                        <i class="fas fa-shopping-bag"></i><span>邏譚舌ｒ菴懊ｋ</span>
+                    <button id="btn-easy-creator" class="abar-btn abar-creator" title="素材を作る：ループ加工・ボーカル除去・BPM変換でBooth販売用ファイルを生成">
+                        <i class="fas fa-shopping-bag"></i><span>素材を作る</span>
                     </button>
-                    <button id="btn-easy-export" class="abar-btn abar-export" title="譖ｸ縺榊・縺暦ｼ夂ｷｨ髮・ｸ医∩縺ｮ譖ｲ繧淡AV縺ｾ縺溘・MP3縺ｧ菫晏ｭ・>
-                        <i class="fas fa-download"></i><span>譖ｸ縺榊・縺・/span>
+                    <button id="btn-easy-export" class="abar-btn abar-export" title="書き出し：編集済みの曲をWAVまたはMP3で保存">
+                        <i class="fas fa-download"></i><span>書き出し</span>
                     </button>
                 </div>
                 <!-- Row 2: info + advanced -->
                 <div class="action-bar-row action-bar-row-sub">
-                    <span id="storage-indicator" class="storage-indicator" title="繝悶Λ繧ｦ繧ｶ縺ｫ閾ｪ蜍穂ｿ晏ｭ倅ｸｭ・域ｬ｡蝗槭い繧ｯ繧ｻ繧ｹ譎ゅｂ蠕ｩ蜈・＆繧後∪縺呻ｼ・>沈 菫晏ｭ俶ｸ医∩</span>
+                    <span id="storage-indicator" class="storage-indicator" title="ブラウザに自動保存中（次回アクセス時も復元されます）">💾 保存済み</span>
                     <div class="abar-spacer"></div>
-                    <button id="btn-easy-clear" class="abar-btn abar-danger" title="迴ｾ蝨ｨ縺ｮ譖ｲ繝ｻ邱ｨ髮・ｒ縺吶∋縺ｦ蜑企勁縺励※繝ｪ繧ｻ繝・ヨ">
-                        <i class="fas fa-trash"></i><span>蜑企勁</span>
+                    <button id="btn-easy-clear" class="abar-btn abar-danger" title="現在の曲・編集をすべて削除してリセット">
+                        <i class="fas fa-trash"></i><span>削除</span>
                     </button>
-                    <button id="btn-toggle-advanced" class="abar-btn abar-advanced" title="荳顔ｴ夊・Δ繝ｼ繝会ｼ壹ち繧､繝繝ｩ繧､繝ｳ繝ｻ繝溘く繧ｵ繝ｼ繝ｻ繧ｨ繝輔ぉ繧ｯ繝医↑縺ｩ隧ｳ邏ｰ縺ｪ邱ｨ髮・ｩ溯・繧定｡ｨ遉ｺ">
-                        <i class="fas fa-sliders-h"></i><span>荳顔ｴ夊・Δ繝ｼ繝・/span>
+                    <button id="btn-toggle-advanced" class="abar-btn abar-advanced" title="上級者モード：タイムライン・ミキサー・エフェクトなど詳細な編集機能を表示">
+                        <i class="fas fa-sliders-h"></i><span>上級者モード</span>
                     </button>
                 </div>
             </div>
@@ -152,25 +155,25 @@
             <div id="main-content">
                 <aside id="left-sidebar">
                     <div class="tool-section">
-                        <h3>繝・・繝ｫ</h3>
-                        <button class="tool-btn active" data-tool="select" title="驕ｸ謚槭ヤ繝ｼ繝ｫ・壹け繝ｪ繝・・繧偵け繝ｪ繝・け縺励※驕ｸ謚槭・繝励Ο繝代ユ繧｣陦ｨ遉ｺ"><i class="fas fa-mouse-pointer"></i><span>驕ｸ謚・/span></button>
-                        <button class="tool-btn tool-btn-cut" data-tool="cut" title="繧ｫ繝・ヨ繝・・繝ｫ・壹け繝ｪ繝・・繧偵け繝ｪ繝・け縺励◆菴咲ｽｮ縺ｧ蛻・牡・・elete/Backspace縺ｧ蜑企勁・・><i class="fas fa-cut"></i><span>繧ｫ繝・ヨ</span></button>
-                        <button class="tool-btn tool-btn-move" data-tool="move" title="遘ｻ蜍輔ヤ繝ｼ繝ｫ・壹け繝ｪ繝・・繧偵ラ繝ｩ繝・げ縺励※驟咲ｽｮ繧貞､画峩"><i class="fas fa-arrows-alt"></i><span>遘ｻ蜍・/span></button>
-                        <button class="tool-btn tool-btn-zoom" data-tool="zoom" title="繧ｺ繝ｼ繝繝・・繝ｫ・壹け繝ｪ繝・け縺ｧ諡｡螟ｧ縲、lt繧ｯ繝ｪ繝・け縺ｧ邵ｮ蟆・><i class="fas fa-search-plus"></i><span>繧ｺ繝ｼ繝</span></button>
-                        <button class="tool-btn tool-btn-draw" data-tool="draw" title="謠冗判繝・・繝ｫ・壹が繝ｼ繝医Γ繝ｼ繧ｷ繝ｧ繝ｳ繧ｫ繝ｼ繝悶ｒ謇区嶌縺阪〒謠上￥・医が繝ｼ繝医Γ繝ｼ繧ｷ繝ｧ繝ｳ繝代ロ繝ｫ縺ｧ菴ｿ逕ｨ・・><i class="fas fa-pen"></i><span>謠冗判</span></button>
+                        <h3>ツール</h3>
+                        <button class="tool-btn active" data-tool="select" title="選択ツール：クリップをクリックして選択・プロパティ表示"><i class="fas fa-mouse-pointer"></i><span>選択</span></button>
+                        <button class="tool-btn tool-btn-cut" data-tool="cut" title="カットツール：クリップをクリックした位置で分割（Delete/Backspaceで削除）"><i class="fas fa-cut"></i><span>カット</span></button>
+                        <button class="tool-btn tool-btn-move" data-tool="move" title="移動ツール：クリップをドラッグして配置を変更"><i class="fas fa-arrows-alt"></i><span>移動</span></button>
+                        <button class="tool-btn tool-btn-zoom" data-tool="zoom" title="ズームツール：クリックで拡大、Altクリックで縮小"><i class="fas fa-search-plus"></i><span>ズーム</span></button>
+                        <button class="tool-btn tool-btn-draw" data-tool="draw" title="描画ツール：オートメーションカーブを手書きで描く（オートメーションパネルで使用）"><i class="fas fa-pen"></i><span>描画</span></button>
                     </div>
                     <div class="tool-section">
-                        <h3>隱ｭ霎ｼ</h3>
-                        <button id="btn-import-audio" title="髻ｳ螢ｰ繝輔ぃ繧､繝ｫ繧定ｪｭ縺ｿ霎ｼ繧・・P3/WAV/FLAC蟇ｾ蠢懶ｼ・ class="main-import-btn"><i class="fas fa-cloud-upload-alt"></i><span>隱ｭ霎ｼ</span></button>
-                        <button id="btn-import-multiple" title="隍・焚譖ｲ繧剃ｸ諡ｬ隱ｭ縺ｿ霎ｼ縺ｿ・医Μ繝溘ャ繧ｯ繧ｹ繝ｻ繝｡繝峨Ξ繝ｼ逕ｨ・・><i class="fas fa-layer-group"></i><span>隍・焚</span></button>
-                        <button id="btn-add-track" title="遨ｺ縺ｮ繝医Λ繝・け繧定ｿｽ蜉・亥挨縺ｮ髻ｳ貅舌ｒ驥阪・縺ｦ蜀咲函・・><i class="fas fa-plus"></i><span>霑ｽ蜉</span></button>
+                        <h3>読込</h3>
+                        <button id="btn-import-audio" title="音声ファイルを読み込む（MP3/WAV/FLAC対応）" class="main-import-btn"><i class="fas fa-cloud-upload-alt"></i><span>読込</span></button>
+                        <button id="btn-import-multiple" title="複数曲を一括読み込み（リミックス・メドレー用）"><i class="fas fa-layer-group"></i><span>複数</span></button>
+                        <button id="btn-add-track" title="空のトラックを追加（別の音源を重ねて再生）"><i class="fas fa-plus"></i><span>追加</span></button>
                     </div>
                     <div class="tool-section">
-                        <h3>AI讖溯・</h3>
-                        <button id="btn-stem-split" class="ai-feature-btn" title="髻ｳ貅仙・髮｢・夐∈謚槭ヨ繝ｩ繝・け繧偵・繝ｼ繧ｫ繝ｫ繝ｻ繝峨Λ繝繝ｻ繝吶・繧ｹ繝ｻ縺昴・莉悶↓閾ｪ蜍募・髮｢" data-ai="stem"><i class="fas fa-project-diagram"></i><span>蛻・屬</span></button>
-                        <button id="btn-midi-convert" class="ai-feature-btn" title="MIDI螟画鋤・夐浹螢ｰ縺九ｉ繝｡繝ｭ繝・ぅ繧呈歓蜃ｺ縺励※MIDI繝輔ぃ繧､繝ｫ縺ｫ螟画鋤・域･ｽ隴應ｽ懈・繝ｻ莉悶た繝輔ヨ縺ｸ縺ｮ遘ｻ讀搾ｼ・ data-ai="midi"><i class="fas fa-keyboard"></i><span>MIDI</span></button>
-                        <button id="btn-vocal-enhance" class="ai-feature-btn" title="繝懊・繧ｫ繝ｫ蠑ｷ蛹厄ｼ壹ヴ繝・メ陬懈ｭ｣繝ｻ繝上・繝｢繝九・霑ｽ蜉繝ｻ繝弱う繧ｺ髯､蜴ｻ" data-ai="vocal"><i class="fas fa-microphone"></i><span>蠑ｷ蛹・/span></button>
-                        <button id="btn-ai-help" class="tool-btn ai-help-btn" title="AI讖溯・縺ｮ隧ｳ縺励＞隱ｬ譏弱ｒ隕九ｋ"><i class="fas fa-question-circle"></i><span>隱ｬ譏・/span></button>
+                        <h3>AI機能</h3>
+                        <button id="btn-stem-split" class="ai-feature-btn" title="音源分離：選択トラックをボーカル・ドラム・ベース・その他に自動分離" data-ai="stem"><i class="fas fa-project-diagram"></i><span>分離</span></button>
+                        <button id="btn-midi-convert" class="ai-feature-btn" title="MIDI変換：音声からメロディを抽出してMIDIファイルに変換（楽譜作成・他ソフトへの移植）" data-ai="midi"><i class="fas fa-keyboard"></i><span>MIDI</span></button>
+                        <button id="btn-vocal-enhance" class="ai-feature-btn" title="ボーカル強化：ピッチ補正・ハーモニー追加・ノイズ除去" data-ai="vocal"><i class="fas fa-microphone"></i><span>強化</span></button>
+                        <button id="btn-ai-help" class="tool-btn ai-help-btn" title="AI機能の詳しい説明を見る"><i class="fas fa-question-circle"></i><span>説明</span></button>
                     </div>
                 </aside>
 
@@ -184,16 +187,16 @@
 
                 <aside id="right-sidebar">
                     <div class="panel" id="panel-properties">
-                        <h3>繝励Ο繝代ユ繧｣</h3>
+                        <h3>プロパティ</h3>
                         <div id="properties-content">
-                            <p class="hint">繝医Λ繝・け縺ｾ縺溘・繧ｯ繝ｪ繝・・繧帝∈謚槭＠縺ｦ縺上□縺輔＞</p>
+                            <p class="hint">トラックまたはクリップを選択してください</p>
                         </div>
                     </div>
                     <div class="panel" id="panel-effects">
-                        <h3>繧ｨ繝輔ぉ繧ｯ繝・/h3>
+                        <h3>エフェクト</h3>
                         <div class="effect-list" id="effect-list">
                             <button class="effect-add-btn" id="btn-add-effect">
-                                <i class="fas fa-plus"></i> 繧ｨ繝輔ぉ繧ｯ繝郁ｿｽ蜉
+                                <i class="fas fa-plus"></i> エフェクト追加
                             </button>
                         </div>
                     </div>
@@ -203,13 +206,13 @@
             <div id="bottom-panel">
                 <div class="bottom-panel-resize-handle"></div>
                 <div class="bottom-tabs">
-                    <button class="bottom-tab active" data-panel="mixer" title="繝溘く繧ｵ繝ｼ・壼推繝医Λ繝・け縺ｮ髻ｳ驥上・繝代Φ繝ｻEQ繝ｻ繝ｪ繝舌・繝悶ｒ蛟句挨隱ｿ謨ｴ">繝溘く繧ｵ繝ｼ</button>
-                    <button class="bottom-tab" data-panel="mastering" title="繝槭せ繧ｿ繝ｪ繝ｳ繧ｰ・壼・菴薙・髻ｳ雉ｪ繝ｻ髻ｳ驥上・繧ｳ繝ｳ繝励Ξ繝・し繝ｼ繧呈怙邨りｪｿ謨ｴ">繝槭せ繧ｿ繝ｪ繝ｳ繧ｰ</button>
-                    <button class="bottom-tab" data-panel="vocal" title="繝懊・繧ｫ繝ｫ陬懈ｭ｣・壹ヴ繝・メ陬懈ｭ｣繝ｻ繝上・繝｢繝九・逕滓・・磯∈謚槭ヨ繝ｩ繝・け縺ｫ驕ｩ逕ｨ・・>繝懊・繧ｫ繝ｫ陬懈ｭ｣</button>
-                    <button class="bottom-tab" data-panel="automation" title="繧ｪ繝ｼ繝医Γ繝ｼ繧ｷ繝ｧ繝ｳ・夐浹驥上・繝代Φ繧呈凾髢楢ｻｸ縺ｧ閾ｪ蜍募､牙喧縺輔○繧・>繧ｪ繝ｼ繝医Γ繝ｼ繧ｷ繝ｧ繝ｳ</button>
-                    <button class="bottom-tab" data-panel="remix" title="繝ｪ繝溘ャ繧ｯ繧ｹ・夊､・焚縺ｮ譖ｲ繧偵▽縺ｪ縺主粋繧上○縺ｦ繝｡繝峨Ξ繝ｼ繧剃ｽ懊ｋ">繝ｪ繝溘ャ繧ｯ繧ｹ</button>
-                    <button class="bottom-tab" data-panel="protools" title="繝励Ο莉穂ｸ翫￡・夂┌髻ｳ繧ｫ繝・ヨ繝ｻ繝輔ぉ繝ｼ繝峨・繝懊・繧ｫ繝ｫ蜉蟾･繝ｻFX謖ｿ蜈･縺ｪ縺ｩ">笨ｨ 繝励Ο莉穂ｸ翫￡</button>
-                    <button id="btn-toggle-bottom-panel" class="bottom-panel-toggle-btn" title="繝代ロ繝ｫ繧呈釜繧翫◆縺溘・ / 螻暮幕縺吶ｋ">
+                    <button class="bottom-tab active" data-panel="mixer" title="ミキサー：各トラックの音量・パン・EQ・リバーブを個別調整">ミキサー</button>
+                    <button class="bottom-tab" data-panel="mastering" title="マスタリング：全体の音質・音量・コンプレッサーを最終調整">マスタリング</button>
+                    <button class="bottom-tab" data-panel="vocal" title="ボーカル補正：ピッチ補正・ハーモニー生成（選択トラックに適用）">ボーカル補正</button>
+                    <button class="bottom-tab" data-panel="automation" title="オートメーション：音量・パンを時間軸で自動変化させる">オートメーション</button>
+                    <button class="bottom-tab" data-panel="remix" title="リミックス：複数の曲をつなぎ合わせてメドレーを作る">リミックス</button>
+                    <button class="bottom-tab" data-panel="protools" title="プロ仕上げ：無音カット・フェード・ボーカル加工・FX挿入など">✨ プロ仕上げ</button>
+                    <button id="btn-toggle-bottom-panel" class="bottom-panel-toggle-btn" title="パネルを折りたたむ / 展開する">
                         <i class="fas fa-chevron-down"></i>
                     </button>
                 </div>
@@ -242,37 +245,37 @@
                             </div>
                         </div>
                         <div class="mastering-module">
-                            <h4><i class="fas fa-compress-arrows-alt"></i> 繧ｳ繝ｳ繝励Ξ繝・し繝ｼ</h4>
+                            <h4><i class="fas fa-compress-arrows-alt"></i> コンプレッサー</h4>
                             <div class="compressor-controls">
-                                <div class="ctrl-group"><label>繧ｹ繝ｬ繝・す繝ｧ繝ｫ繝・/label><input type="range" id="master-comp-threshold" min="-60" max="0" step="1" value="-24"><span class="ctrl-value">-24 dB</span></div>
-                                <div class="ctrl-group"><label>繝ｬ繧ｷ繧ｪ</label><input type="range" id="master-comp-ratio" min="1" max="20" step="0.5" value="4"><span class="ctrl-value">4:1</span></div>
-                                <div class="ctrl-group"><label>繧｢繧ｿ繝・け</label><input type="range" id="master-comp-attack" min="0" max="100" step="1" value="10"><span class="ctrl-value">10 ms</span></div>
-                                <div class="ctrl-group"><label>繝ｪ繝ｪ繝ｼ繧ｹ</label><input type="range" id="master-comp-release" min="10" max="1000" step="10" value="250"><span class="ctrl-value">250 ms</span></div>
+                                <div class="ctrl-group"><label>スレッショルド</label><input type="range" id="master-comp-threshold" min="-60" max="0" step="1" value="-24"><span class="ctrl-value">-24 dB</span></div>
+                                <div class="ctrl-group"><label>レシオ</label><input type="range" id="master-comp-ratio" min="1" max="20" step="0.5" value="4"><span class="ctrl-value">4:1</span></div>
+                                <div class="ctrl-group"><label>アタック</label><input type="range" id="master-comp-attack" min="0" max="100" step="1" value="10"><span class="ctrl-value">10 ms</span></div>
+                                <div class="ctrl-group"><label>リリース</label><input type="range" id="master-comp-release" min="10" max="1000" step="10" value="250"><span class="ctrl-value">250 ms</span></div>
                             </div>
                         </div>
                         <div class="mastering-module">
-                            <h4><i class="fas fa-volume-up"></i> 繝ｪ繝溘ャ繧ｿ繝ｼ</h4>
+                            <h4><i class="fas fa-volume-up"></i> リミッター</h4>
                             <div class="limiter-controls">
-                                <div class="ctrl-group"><label>繧ｷ繝ｼ繝ｪ繝ｳ繧ｰ</label><input type="range" id="master-limiter-ceiling" min="-6" max="0" step="0.1" value="-0.3"><span class="ctrl-value">-0.3 dB</span></div>
-                                <div class="ctrl-group"><label>繧ｲ繧､繝ｳ</label><input type="range" id="master-limiter-gain" min="0" max="12" step="0.5" value="0"><span class="ctrl-value">0 dB</span></div>
+                                <div class="ctrl-group"><label>シーリング</label><input type="range" id="master-limiter-ceiling" min="-6" max="0" step="0.1" value="-0.3"><span class="ctrl-value">-0.3 dB</span></div>
+                                <div class="ctrl-group"><label>ゲイン</label><input type="range" id="master-limiter-gain" min="0" max="12" step="0.5" value="0"><span class="ctrl-value">0 dB</span></div>
                             </div>
                         </div>
                         <div class="mastering-module">
-                            <h4><i class="fas fa-headphones"></i> 繧ｹ繝・Ξ繧ｪ</h4>
-                            <div class="ctrl-group"><label>蟷・/label><input type="range" id="master-stereo-width" min="0" max="200" step="5" value="100"><span class="ctrl-value">100%</span></div>
+                            <h4><i class="fas fa-headphones"></i> ステレオ</h4>
+                            <div class="ctrl-group"><label>幅</label><input type="range" id="master-stereo-width" min="0" max="200" step="5" value="100"><span class="ctrl-value">100%</span></div>
                         </div>
                         <div class="mastering-presets">
-                            <h4>繝励Μ繧ｻ繝・ヨ</h4>
+                            <h4>プリセット</h4>
                             <select id="mastering-preset">
-                                <option value="none">繧ｫ繧ｹ繧ｿ繝</option>
-                                <option value="pop">繝昴ャ繝・/option>
-                                <option value="rock">繝ｭ繝・け</option>
-                                <option value="hiphop">繝偵ャ繝励・繝・・</option>
+                                <option value="none">カスタム</option>
+                                <option value="pop">ポップ</option>
+                                <option value="rock">ロック</option>
+                                <option value="hiphop">ヒップホップ</option>
                                 <option value="edm">EDM</option>
-                                <option value="jazz">繧ｸ繝｣繧ｺ</option>
-                                <option value="classical">繧ｯ繝ｩ繧ｷ繝・け</option>
-                                <option value="podcast">繝昴ャ繝峨く繝｣繧ｹ繝・/option>
-                                <option value="loudness">繝ｩ繧ｦ繝峨ロ繧ｹ譛螟ｧ蛹・/option>
+                                <option value="jazz">ジャズ</option>
+                                <option value="classical">クラシック</option>
+                                <option value="podcast">ポッドキャスト</option>
+                                <option value="loudness">ラウドネス最大化</option>
                             </select>
                         </div>
                     </div>
@@ -281,43 +284,43 @@
                 <div class="bottom-content" id="panel-vocal">
                     <div class="vocal-processor">
                         <div class="vocal-module">
-                            <h4><i class="fas fa-music"></i> 繝斐ャ繝∬｣懈ｭ｣</h4>
+                            <h4><i class="fas fa-music"></i> ピッチ補正</h4>
                             <div class="pitch-controls">
-                                <div class="ctrl-group"><label>陬懈ｭ｣蠑ｷ蠎ｦ</label><input type="range" id="vocal-pitch-strength" min="0" max="100" step="1" value="50"><span class="ctrl-value">50%</span></div>
-                                <div class="ctrl-group"><label>繧ｹ繝斐・繝・/label><input type="range" id="vocal-pitch-speed" min="1" max="100" step="1" value="30"><span class="ctrl-value">30 ms</span></div>
-                                <div class="ctrl-group"><label>繧ｭ繝ｼ</label><select id="vocal-key"><option value="C">C (繝・</option><option value="C#">C#</option><option value="D">D (繝ｬ)</option><option value="D#">D#</option><option value="E">E (繝・</option><option value="F">F (繝輔ぃ)</option><option value="F#">F#</option><option value="G">G (繧ｽ)</option><option value="G#">G#</option><option value="A">A (繝ｩ)</option><option value="A#">A#</option><option value="B">B (繧ｷ)</option></select></div>
-                                <div class="ctrl-group"><label>繧ｹ繧ｱ繝ｼ繝ｫ</label><select id="vocal-scale"><option value="major">繝｡繧ｸ繝｣繝ｼ</option><option value="minor">繝槭う繝翫・</option><option value="chromatic">繧ｯ繝ｭ繝槭メ繝・け</option><option value="pentatonic">繝壹Φ繧ｿ繝医ル繝・け</option></select></div>
+                                <div class="ctrl-group"><label>補正強度</label><input type="range" id="vocal-pitch-strength" min="0" max="100" step="1" value="50"><span class="ctrl-value">50%</span></div>
+                                <div class="ctrl-group"><label>スピード</label><input type="range" id="vocal-pitch-speed" min="1" max="100" step="1" value="30"><span class="ctrl-value">30 ms</span></div>
+                                <div class="ctrl-group"><label>キー</label><select id="vocal-key"><option value="C">C (ド)</option><option value="C#">C#</option><option value="D">D (レ)</option><option value="D#">D#</option><option value="E">E (ミ)</option><option value="F">F (ファ)</option><option value="F#">F#</option><option value="G">G (ソ)</option><option value="G#">G#</option><option value="A">A (ラ)</option><option value="A#">A#</option><option value="B">B (シ)</option></select></div>
+                                <div class="ctrl-group"><label>スケール</label><select id="vocal-scale"><option value="major">メジャー</option><option value="minor">マイナー</option><option value="chromatic">クロマチック</option><option value="pentatonic">ペンタトニック</option></select></div>
                             </div>
                         </div>
                         <div class="vocal-module">
-                            <h4><i class="fas fa-microphone-alt"></i> 繧ｯ繝ｪ繝ｼ繝翫・</h4>
+                            <h4><i class="fas fa-microphone-alt"></i> クリーナー</h4>
                             <div class="cleaner-controls">
-                                <div class="ctrl-group"><label>繝弱う繧ｺ髯､蜴ｻ</label><input type="range" id="vocal-denoise" min="0" max="100" step="1" value="30"><span class="ctrl-value">30%</span></div>
-                                <div class="ctrl-group"><label>豁ｯ謫ｦ髻ｳ髯､蜴ｻ</label><input type="range" id="vocal-deesser" min="0" max="100" step="1" value="40"><span class="ctrl-value">40%</span></div>
-                                <div class="ctrl-group"><label>譏守椚蠎ｦ</label><input type="range" id="vocal-presence" min="-12" max="12" step="0.5" value="3"><span class="ctrl-value">+3 dB</span></div>
-                                <div class="ctrl-group"><label>繝悶Ξ繧ｹ髯､蜴ｻ</label><input type="range" id="vocal-breath" min="0" max="100" step="1" value="20"><span class="ctrl-value">20%</span></div>
+                                <div class="ctrl-group"><label>ノイズ除去</label><input type="range" id="vocal-denoise" min="0" max="100" step="1" value="30"><span class="ctrl-value">30%</span></div>
+                                <div class="ctrl-group"><label>歯擦音除去</label><input type="range" id="vocal-deesser" min="0" max="100" step="1" value="40"><span class="ctrl-value">40%</span></div>
+                                <div class="ctrl-group"><label>明瞭度</label><input type="range" id="vocal-presence" min="-12" max="12" step="0.5" value="3"><span class="ctrl-value">+3 dB</span></div>
+                                <div class="ctrl-group"><label>ブレス除去</label><input type="range" id="vocal-breath" min="0" max="100" step="1" value="20"><span class="ctrl-value">20%</span></div>
                             </div>
                         </div>
                         <div class="vocal-module">
-                            <h4><i class="fas fa-magic"></i> 繧ｨ繝輔ぉ繧ｯ繝・/h4>
+                            <h4><i class="fas fa-magic"></i> エフェクト</h4>
                             <div class="vocal-fx-controls">
-                                <div class="ctrl-group"><label>繝ｪ繝舌・繝・/label><input type="range" id="vocal-reverb" min="0" max="100" step="1" value="20"><span class="ctrl-value">20%</span></div>
-                                <div class="ctrl-group"><label>繝・ぅ繝ｬ繧､</label><input type="range" id="vocal-delay" min="0" max="100" step="1" value="0"><span class="ctrl-value">0%</span></div>
-                                <div class="ctrl-group"><label>蜴壹∩</label><input type="range" id="vocal-doubling" min="0" max="100" step="1" value="0"><span class="ctrl-value">0%</span></div>
-                                <div class="ctrl-group"><label>繝上・繝｢繝九・</label><select id="vocal-harmony"><option value="none">縺ｪ縺・/option><option value="third">3蠎ｦ荳・/option><option value="fifth">5蠎ｦ荳・/option><option value="octave">繧ｪ繧ｯ繧ｿ繝ｼ繝紋ｸ・/option><option value="third-below">3蠎ｦ荳・/option></select></div>
+                                <div class="ctrl-group"><label>リバーブ</label><input type="range" id="vocal-reverb" min="0" max="100" step="1" value="20"><span class="ctrl-value">20%</span></div>
+                                <div class="ctrl-group"><label>ディレイ</label><input type="range" id="vocal-delay" min="0" max="100" step="1" value="0"><span class="ctrl-value">0%</span></div>
+                                <div class="ctrl-group"><label>厚み</label><input type="range" id="vocal-doubling" min="0" max="100" step="1" value="0"><span class="ctrl-value">0%</span></div>
+                                <div class="ctrl-group"><label>ハーモニー</label><select id="vocal-harmony"><option value="none">なし</option><option value="third">3度上</option><option value="fifth">5度上</option><option value="octave">オクターブ上</option><option value="third-below">3度下</option></select></div>
                             </div>
                         </div>
                         <div class="vocal-module">
-                            <h4><i class="fas fa-venus-mars"></i> 繝懊う繧ｹ繝√ぉ繝ｳ繧ｸ</h4>
+                            <h4><i class="fas fa-venus-mars"></i> ボイスチェンジ</h4>
                             <div class="voice-change-buttons">
-                                <button id="btn-voice-to-female" class="voice-change-btn female"><i class="fas fa-arrow-up"></i> 逕ｷ螢ｰ竊貞･ｳ螢ｰ</button>
-                                <button id="btn-voice-to-male" class="voice-change-btn male"><i class="fas fa-arrow-down"></i> 螂ｳ螢ｰ竊堤塙螢ｰ</button>
+                                <button id="btn-voice-to-female" class="voice-change-btn female"><i class="fas fa-arrow-up"></i> 男声→女声</button>
+                                <button id="btn-voice-to-male" class="voice-change-btn male"><i class="fas fa-arrow-down"></i> 女声→男声</button>
                             </div>
-                            <div class="ctrl-group" style="margin-top:6px"><label>螟画鋤蠑ｷ蠎ｦ</label><input type="range" id="voice-change-amount" min="1" max="8" step="0.5" value="4"><span class="ctrl-value">4 蜊企浹</span></div>
+                            <div class="ctrl-group" style="margin-top:6px"><label>変換強度</label><input type="range" id="voice-change-amount" min="1" max="8" step="0.5" value="4"><span class="ctrl-value">4 半音</span></div>
                         </div>
                         <div class="vocal-presets">
-                            <h4>繝励Μ繧ｻ繝・ヨ</h4>
-                            <select id="vocal-preset"><option value="none">繧ｫ繧ｹ繧ｿ繝</option><option value="clean">繧ｯ繝ｪ繝ｼ繝ｳ</option><option value="warm">繧ｦ繧ｩ繝ｼ繝</option><option value="bright">繝悶Λ繧､繝・/option><option value="radio">繝ｩ繧ｸ繧ｪ</option><option value="telephone">繝・Ξ繝輔か繝ｳ</option><option value="autotune">繧ｪ繝ｼ繝医メ繝･繝ｼ繝ｳ</option></select>
+                            <h4>プリセット</h4>
+                            <select id="vocal-preset"><option value="none">カスタム</option><option value="clean">クリーン</option><option value="warm">ウォーム</option><option value="bright">ブライト</option><option value="radio">ラジオ</option><option value="telephone">テレフォン</option><option value="autotune">オートチューン</option></select>
                         </div>
                     </div>
                 </div>
@@ -325,13 +328,13 @@
                 <div class="bottom-content" id="panel-automation">
                     <div class="automation-editor">
                         <div class="automation-toolbar">
-                            <label>繝代Λ繝｡繝ｼ繧ｿ:</label>
+                            <label>パラメータ:</label>
                             <select id="automation-param">
-                                <option value="volume">髻ｳ驥・/option><option value="pan">繝代Φ</option><option value="eq-low">EQ Low</option><option value="eq-mid">EQ Mid</option><option value="eq-high">EQ High</option><option value="reverb">繝ｪ繝舌・繝・/option><option value="filter">繝輔ぅ繝ｫ繧ｿ繝ｼ</option>
+                                <option value="volume">音量</option><option value="pan">パン</option><option value="eq-low">EQ Low</option><option value="eq-mid">EQ Mid</option><option value="eq-high">EQ High</option><option value="reverb">リバーブ</option><option value="filter">フィルター</option>
                             </select>
-                            <button id="btn-auto-clear">繧ｯ繝ｪ繧｢</button>
-                            <button id="btn-auto-smooth">繧ｹ繝繝ｼ繧ｺ</button>
-                            <label>繝医Λ繝・け:</label>
+                            <button id="btn-auto-clear">クリア</button>
+                            <button id="btn-auto-smooth">スムーズ</button>
+                            <label>トラック:</label>
                             <select id="automation-track"></select>
                         </div>
                         <canvas id="automation-canvas" width="1200" height="200"></canvas>
@@ -343,34 +346,34 @@
                         <!-- Song library / depot -->
                         <div class="plarail-library">
                             <div class="plarail-library-header">
-                                <span class="plarail-section-label"><i class="fas fa-music"></i> 譖ｲ繝ｩ繧､繝悶Λ繝ｪ</span>
+                                <span class="plarail-section-label"><i class="fas fa-music"></i> 曲ライブラリ</span>
                                 <div class="plarail-library-actions">
-                                    <button id="btn-remix-add" title="譖ｲ繧定ｿｽ蜉"><i class="fas fa-plus"></i> 霑ｽ蜉</button>
-                                    <button id="btn-remix-auto" title="繧ｨ繝阪Ν繧ｮ繝ｼ鬆・↓閾ｪ蜍穂ｸｦ縺ｳ譖ｿ縺・><i class="fas fa-magic"></i> 閾ｪ蜍・/button>
+                                    <button id="btn-remix-add" title="曲を追加"><i class="fas fa-plus"></i> 追加</button>
+                                    <button id="btn-remix-auto" title="エネルギー順に自動並び替え"><i class="fas fa-magic"></i> 自動</button>
                                 </div>
                             </div>
                             <div id="plarail-song-pool" class="plarail-song-pool">
-                                <div class="plarail-empty-hint">竊・譖ｲ繧定ｿｽ蜉縺励※繝励Λ繝ｬ繝ｼ繝ｫ縺ｿ縺溘＞縺ｫ縺､縺ｪ縺斐≧・・/div>
+                                <div class="plarail-empty-hint">← 曲を追加してプラレールみたいにつなごう！</div>
                             </div>
                         </div>
 
                         <!-- Rail / connection area -->
                         <div class="plarail-rail-section">
                             <div class="plarail-rail-header">
-                                <span class="plarail-section-label"><i class="fas fa-train"></i> 謗･邯壹Ξ繝ｼ繝ｫ・医ラ繝ｩ繝・げ・・ラ繝ｭ繝・・縺ｧ荳ｦ縺ｳ譖ｿ縺茨ｼ・/span>
+                                <span class="plarail-section-label"><i class="fas fa-train"></i> 接続レール（ドラッグ＆ドロップで並び替え）</span>
                                 <div class="plarail-rail-actions">
                                     <div class="crossfade-control">
-                                        <label>邯吶℃逶ｮ:</label>
+                                        <label>継ぎ目:</label>
                                         <input type="range" id="crossfade-duration" min="0" max="10" step="0.5" value="3">
-                                        <span id="crossfade-value">3.0遘・/span>
+                                        <span id="crossfade-value">3.0秒</span>
                                         <select id="crossfade-type">
-                                            <option value="equal-power" selected>繧､繧ｳ繝ｼ繝ｫ繝代Ρ繝ｼ</option>
-                                            <option value="linear">繝ｪ繝九い</option>
-                                            <option value="s-curve">S繧ｫ繝ｼ繝・/option>
-                                            <option value="exponential">謖・焚</option>
+                                            <option value="equal-power" selected>イコールパワー</option>
+                                            <option value="linear">リニア</option>
+                                            <option value="s-curve">Sカーブ</option>
+                                            <option value="exponential">指数</option>
                                         </select>
                                     </div>
-                                    <button id="btn-remix-export" title="繝ｬ繝ｼ繝ｫ縺ｮ譖ｲ鬆・〒縺ｲ縺ｨ縺､縺ｮ髻ｳ螢ｰ繝輔ぃ繧､繝ｫ縺ｫ譖ｸ縺榊・縺・><i class="fas fa-download"></i> 譖ｸ縺榊・縺・/button>
+                                    <button id="btn-remix-export" title="レールの曲順でひとつの音声ファイルに書き出し"><i class="fas fa-download"></i> 書き出し</button>
                                 </div>
                             </div>
                             <div class="plarail-rail-container" id="plarail-rail-container">
@@ -378,7 +381,7 @@
                                 <div class="plarail-start-cap"><i class="fas fa-play"></i></div>
                                 <div id="plarail-cars" class="plarail-cars"></div>
                                 <div class="plarail-drop-zone" id="plarail-drop-end">
-                                    <div class="plarail-drop-inner">・・br><small>縺薙％縺ｸ繝峨Ο繝・・</small></div>
+                                    <div class="plarail-drop-inner">＋<br><small>ここへドロップ</small></div>
                                 </div>
                                 <div class="plarail-end-cap"><i class="fas fa-stop"></i></div>
                             </div>
@@ -392,163 +395,163 @@
 
                         <!-- Target track selector -->
                         <div class="pro-target-row">
-                            <span class="pro-target-label"><i class="fas fa-crosshairs"></i> 驕ｩ逕ｨ蜈医ヨ繝ｩ繝・け:</span>
+                            <span class="pro-target-label"><i class="fas fa-crosshairs"></i> 適用先トラック:</span>
                             <select id="pro-target-track"></select>
-                            <span class="pro-target-hint">縺薙％縺ｧ驕ｸ繧薙□繝医Λ繝・け縺ｮ繧ｯ繝ｪ繝・・縺ｫ蜉ｹ譫懊ｒ驕ｩ逕ｨ縺励∪縺・/span>
+                            <span class="pro-target-hint">ここで選んだトラックのクリップに効果を適用します</span>
                         </div>
 
-                        <!-- Section: 繧ｯ繝ｪ繝ｼ繝ｳ繧｢繝・・ -->
-                        <div class="pro-section-title"><i class="fas fa-cut"></i> 繧ｯ繝ｪ繝ｼ繝ｳ繧｢繝・・</div>
+                        <!-- Section: クリーンアップ -->
+                        <div class="pro-section-title"><i class="fas fa-cut"></i> クリーンアップ</div>
                         <div class="pro-cards-row">
 
                             <div class="pro-card">
                                 <div class="pro-card-header">
-                                    <span class="pro-card-icon">笨ゑｸ・/span>
+                                    <span class="pro-card-icon">✂️</span>
                                     <div>
-                                        <div class="pro-card-title">辟｡髻ｳ繧ｫ繝・ヨ</div>
-                                        <div class="pro-card-desc">譖ｲ縺ｮ譛蛻昴・譛蠕後・辟｡髻ｳ繧偵Ρ繝ｳ繧ｯ繝ｪ繝・け縺ｧ髯､蜴ｻ</div>
+                                        <div class="pro-card-title">無音カット</div>
+                                        <div class="pro-card-desc">曲の最初・最後の無音をワンクリックで除去</div>
                                     </div>
                                 </div>
                                 <div class="pro-card-controls">
-                                    <label>讀懷・諢溷ｺｦ:</label>
+                                    <label>検出感度:</label>
                                     <input type="range" id="silence-threshold" min="1" max="5" step="1" value="2">
-                                    <span id="silence-threshold-val">讓呎ｺ・/span>
+                                    <span id="silence-threshold-val">標準</span>
                                 </div>
-                                <button class="pro-apply-btn" id="btn-trim-silence">驕ｩ逕ｨ</button>
+                                <button class="pro-apply-btn" id="btn-trim-silence">適用</button>
                             </div>
 
                             <div class="pro-card">
                                 <div class="pro-card-header">
-                                    <span class="pro-card-icon">桁</span>
+                                    <span class="pro-card-icon">🌅</span>
                                     <div>
-                                        <div class="pro-card-title">繧｢繧ｦ繝医Ο 繝輔ぉ繝ｼ繝峨い繧ｦ繝・/div>
-                                        <div class="pro-card-desc">譖ｲ縺ｮ邨ゅｏ繧翫ｒ繝励Ο縺｣縺ｽ縺上↑繧√ｉ縺九↓繝輔ぉ繝ｼ繝・/div>
+                                        <div class="pro-card-title">アウトロ フェードアウト</div>
+                                        <div class="pro-card-desc">曲の終わりをプロっぽくなめらかにフェード</div>
                                     </div>
                                 </div>
                                 <div class="pro-card-controls">
-                                    <label>髟ｷ縺・</label>
+                                    <label>長さ:</label>
                                     <input type="range" id="fade-duration" min="1" max="10" step="0.5" value="3">
-                                    <span id="fade-duration-val">3.0遘・/span>
+                                    <span id="fade-duration-val">3.0秒</span>
                                     <select id="fade-type">
-                                        <option value="exponential" selected>閾ｪ辟ｶ・域欠謨ｰ・・/option>
-                                        <option value="s-curve">S蟄・/option>
-                                        <option value="linear">繝ｪ繝九い</option>
+                                        <option value="exponential" selected>自然（指数）</option>
+                                        <option value="s-curve">S字</option>
+                                        <option value="linear">リニア</option>
                                     </select>
                                 </div>
-                                <button class="pro-apply-btn" id="btn-outro-fade">驕ｩ逕ｨ</button>
+                                <button class="pro-apply-btn" id="btn-outro-fade">適用</button>
                             </div>
 
                         </div>
 
-                        <!-- Section: 繝懊・繧ｫ繝ｫ蜉蟾･ -->
-                        <div class="pro-section-title"><i class="fas fa-microphone-alt"></i> 繝懊・繧ｫ繝ｫ蜉蟾･</div>
+                        <!-- Section: ボーカル加工 -->
+                        <div class="pro-section-title"><i class="fas fa-microphone-alt"></i> ボーカル加工</div>
                         <div class="pro-cards-row">
 
                             <div class="pro-card">
                                 <div class="pro-card-header">
-                                    <span class="pro-card-icon">痔</span>
+                                    <span class="pro-card-icon">🎤</span>
                                     <div>
-                                        <div class="pro-card-title">繧ｱ繝ｭ繧ｱ繝ｭ / 繧ｪ繝ｼ繝医メ繝･繝ｼ繝ｳ</div>
-                                        <div class="pro-card-desc">繝ｭ繝懊ャ繝磯｢ｨ繝ｻT-Pain鬚ｨ縺ｮ繝懊・繧ｫ繝ｫ蜉蟾･</div>
+                                        <div class="pro-card-title">ケロケロ / オートチューン</div>
+                                        <div class="pro-card-desc">ロボット風・T-Pain風のボーカル加工</div>
                                     </div>
                                 </div>
                                 <div class="pro-card-controls">
                                     <div class="preset-chips" id="autotune-style-chips">
-                                        <button class="preset-chip active" data-val="kero">繧ｱ繝ｭ繧ｱ繝ｭ</button>
-                                        <button class="preset-chip" data-val="smooth">繧ｹ繝繝ｼ繧ｹ</button>
+                                        <button class="preset-chip active" data-val="kero">ケロケロ</button>
+                                        <button class="preset-chip" data-val="smooth">スムース</button>
                                     </div>
                                 </div>
                                 <div class="pro-card-controls">
-                                    <label>蠑ｷ縺・</label>
+                                    <label>強さ:</label>
                                     <input type="range" id="autotune-intensity" min="0.2" max="1" step="0.1" value="0.7" style="flex:1;min-width:80px">
                                     <span id="autotune-intensity-val" style="min-width:34px;text-align:right">70%</span>
                                 </div>
-                                <button class="pro-apply-btn" id="btn-autotune">驕ｩ逕ｨ</button>
+                                <button class="pro-apply-btn" id="btn-autotune">適用</button>
                             </div>
 
                             <div class="pro-card">
                                 <div class="pro-card-header">
-                                    <span class="pro-card-icon">徴</span>
+                                    <span class="pro-card-icon">💥</span>
                                     <div>
-                                        <div class="pro-card-title">J-POP繧ｳ繝ｳ繝・/div>
-                                        <div class="pro-card-desc">莉企｢ｨ縺ｮJ-POP繝ｻDTM鬚ｨ縲∝ｭ伜惠諢溘≠繧句｣ｰ縺ｫ</div>
+                                        <div class="pro-card-title">J-POPコンプ</div>
+                                        <div class="pro-card-desc">今風のJ-POP・DTM風、存在感ある声に</div>
                                     </div>
                                 </div>
                                 <div class="pro-card-controls">
                                     <div class="preset-chips" id="vcomp-preset-chips">
-                                        <button class="preset-chip" data-val="light">霆ｽ繧・/button>
-                                        <button class="preset-chip active" data-val="medium">譎ｮ騾・/button>
-                                        <button class="preset-chip" data-val="heavy">蠑ｷ繧・/button>
+                                        <button class="preset-chip" data-val="light">軽め</button>
+                                        <button class="preset-chip active" data-val="medium">普通</button>
+                                        <button class="preset-chip" data-val="heavy">強め</button>
                                     </div>
                                 </div>
-                                <button class="pro-apply-btn" id="btn-vocal-comp">驕ｩ逕ｨ</button>
+                                <button class="pro-apply-btn" id="btn-vocal-comp">適用</button>
                             </div>
 
                         </div>
 
-                        <!-- Section: FX繝ｻ貍泌・ -->
-                        <div class="pro-section-title"><i class="fas fa-star"></i> 逶帙ｊ荳翫￡FX</div>
+                        <!-- Section: FX・演出 -->
+                        <div class="pro-section-title"><i class="fas fa-star"></i> 盛り上げFX</div>
                         <div class="pro-cards-row">
 
                             <div class="pro-card">
                                 <div class="pro-card-header">
-                                    <span class="pro-card-icon">筮・ｸ・/span>
+                                    <span class="pro-card-icon">⬆️</span>
                                     <div>
-                                        <div class="pro-card-title">繧ｵ繝灘燕繧ｹ繧ｦ繧｣繝ｼ繝・/div>
-                                        <div class="pro-card-desc">縲後す繝･繝ｯ繝ｼ繝ｳ縲堺ｸ頑・髻ｳ・医Μ繝舌・繧ｹ繧ｷ繝ｳ繝舌Ν・峨ｒ謖ｿ蜈･縺励※繧ｵ繝薙ｒ逶帙ｊ荳翫￡繧・/div>
+                                        <div class="pro-card-title">サビ前スウィープ</div>
+                                        <div class="pro-card-desc">「シュワーン」上昇音（リバースシンバル）を挿入してサビを盛り上げる</div>
                                     </div>
                                 </div>
                                 <div class="pro-card-controls">
-                                    <label>髟ｷ縺・</label>
+                                    <label>長さ:</label>
                                     <input type="range" id="sweep-duration" min="1" max="4" step="0.5" value="2" style="flex:1;min-width:80px">
-                                    <span id="sweep-duration-val" style="min-width:36px;text-align:right">2.0遘・/span>
+                                    <span id="sweep-duration-val" style="min-width:36px;text-align:right">2.0秒</span>
                                 </div>
                                 <div class="pro-card-controls">
-                                    <label>謖ｿ蜈･菴咲ｽｮ(遘・:</label>
+                                    <label>挿入位置(秒):</label>
                                     <input type="number" id="sweep-position" min="0" step="1" value="0" style="width:64px;background:var(--bg-surface);border:1px solid var(--border);color:var(--text-primary);border-radius:4px;padding:3px 6px;font-size:11px">
-                                    <span style="font-size:9px;color:var(--text-muted)">(0 = 譛ｫ蟆ｾ縺ｫ謖ｿ蜈･)</span>
+                                    <span style="font-size:9px;color:var(--text-muted)">(0 = 末尾に挿入)</span>
                                 </div>
-                                <button class="pro-apply-btn" id="btn-insert-sweep">譁ｰ繝医Λ繝・け縺ｫ霑ｽ蜉</button>
+                                <button class="pro-apply-btn" id="btn-insert-sweep">新トラックに追加</button>
                             </div>
 
                             <div class="pro-card">
                                 <div class="pro-card-header">
-                                    <span class="pro-card-icon">噫</span>
+                                    <span class="pro-card-icon">🚀</span>
                                     <div>
-                                        <div class="pro-card-title">繝薙Ν繝峨い繝・・FX</div>
-                                        <div class="pro-card-desc">邱雁ｼｵ諢溘ｒ鬮倥ａ繧倶ｸ頑・髻ｳ繝ｻ繝峨Λ繝繝ｭ繝ｼ繝ｫ</div>
+                                        <div class="pro-card-title">ビルドアップFX</div>
+                                        <div class="pro-card-desc">緊張感を高める上昇音・ドラムロール</div>
                                     </div>
                                 </div>
                                 <div class="pro-card-controls">
                                     <div class="preset-chips" id="buildup-style-chips">
-                                        <button class="preset-chip active" data-val="riser">繝ｩ繧､繧ｶ繝ｼ</button>
-                                        <button class="preset-chip" data-val="drum_buildup">繝峨Λ繝繝ｭ繝ｼ繝ｫ</button>
+                                        <button class="preset-chip active" data-val="riser">ライザー</button>
+                                        <button class="preset-chip" data-val="drum_buildup">ドラムロール</button>
                                     </div>
                                 </div>
                                 <div class="pro-card-controls">
-                                    <label>髟ｷ縺・</label>
+                                    <label>長さ:</label>
                                     <input type="range" id="buildup-duration" min="1" max="8" step="1" value="4" style="flex:1;min-width:80px">
-                                    <span id="buildup-duration-val" style="min-width:28px;text-align:right">4遘・/span>
+                                    <span id="buildup-duration-val" style="min-width:28px;text-align:right">4秒</span>
                                 </div>
-                                <button class="pro-apply-btn" id="btn-buildup-fx">譁ｰ繝医Λ繝・け縺ｫ霑ｽ蜉</button>
+                                <button class="pro-apply-btn" id="btn-buildup-fx">新トラックに追加</button>
                             </div>
 
                         </div>
 
-                        <!-- Section: 繧ｹ繝槭・繝亥・蜑ｲ -->
-                        <div class="pro-section-title"><i class="fas fa-scissors"></i> 繧ｹ繝槭・繝亥・蜑ｲ</div>
+                        <!-- Section: スマート分割 -->
+                        <div class="pro-section-title"><i class="fas fa-scissors"></i> スマート分割</div>
                         <div class="pro-cards-row">
 
                             <div class="pro-card pro-card-wide">
                                 <div class="pro-card-header">
-                                    <span class="pro-card-icon">七</span>
+                                    <span class="pro-card-icon">🎵</span>
                                     <div>
-                                        <div class="pro-card-title">豕｢蠖｢閾ｪ蜍募・蜑ｲ</div>
-                                        <div class="pro-card-desc">譖ｲ縺ｮ繧ｨ繝阪Ν繧ｮ繝ｼ螟牙喧繧貞・譫舌＠縲、繝｡繝ｭ繝ｻ繧ｵ繝薙↑縺ｩ縺ｮ蛹ｺ蛻・ｊ縺ｧ閾ｪ蜍慕噪縺ｫ隍・焚繧ｯ繝ｪ繝・・縺ｫ蛻・牡縺励∪縺・/div>
+                                        <div class="pro-card-title">波形自動分割</div>
+                                        <div class="pro-card-desc">曲のエネルギー変化を分析し、Aメロ・サビなどの区切りで自動的に複数クリップに分割します</div>
                                     </div>
                                 </div>
                                 <div class="pro-card-controls">
-                                    <label>蛻・牡謨ｰ:</label>
+                                    <label>分割数:</label>
                                     <div class="preset-chips" id="segment-count-chips">
                                         <button class="preset-chip" data-val="2">2</button>
                                         <button class="preset-chip" data-val="3">3</button>
@@ -556,9 +559,9 @@
                                         <button class="preset-chip" data-val="6">6</button>
                                         <button class="preset-chip" data-val="8">8</button>
                                     </div>
-                                    <span style="font-size:9px;color:var(--text-muted);margin-left:4px">蛻・牡縺励◆繧ｯ繝ｪ繝・・縺ｯ譁ｰ縺励＞繝医Λ繝・け縺ｫ驟咲ｽｮ縺輔ｌ縺ｾ縺・/span>
+                                    <span style="font-size:9px;color:var(--text-muted);margin-left:4px">分割したクリップは新しいトラックに配置されます</span>
                                 </div>
-                                <button class="pro-apply-btn" id="btn-auto-segment">蛻・牡縺励※驟咲ｽｮ</button>
+                                <button class="pro-apply-btn" id="btn-auto-segment">分割して配置</button>
                             </div>
 
                         </div>
@@ -572,51 +575,51 @@
         <div id="preset-popup" class="modal hidden">
             <div class="modal-content preset-modal">
                 <div class="modal-header">
-                    <h2><i class="fas fa-magic"></i> 縺九ｓ縺溘ｓ繝励Μ繧ｻ繝・ヨ</h2>
+                    <h2><i class="fas fa-magic"></i> かんたんプリセット</h2>
                     <button class="modal-close">&times;</button>
                 </div>
                 <div class="modal-body">
-                    <p style="color:var(--text-secondary);margin-bottom:16px;">繝ｯ繝ｳ繧ｿ繝・・縺ｧ譖ｲ縺ｮ髮ｰ蝗ｲ豌励ｒ螟峨∴繧峨ｌ縺ｾ縺吶よｰ励↓蜈･縺｣縺溘ｂ縺ｮ繧帝∈繧薙〒縺上□縺輔＞縲・/p>
+                    <p style="color:var(--text-secondary);margin-bottom:16px;">ワンタップで曲の雰囲気を変えられます。気に入ったものを選んでください。</p>
                     <div class="preset-grid">
                         <button class="preset-card" data-preset="pop">
-                            <span class="preset-emoji">笨ｨ</span>
-                            <span class="preset-name">繝昴ャ繝励・繧ｭ繝ｩ繧ｭ繝ｩ</span>
-                            <span class="preset-desc">譏弱ｋ縺上け繝ｪ繧｢縺ｪ莉穂ｸ翫′繧・/span>
+                            <span class="preset-emoji">✨</span>
+                            <span class="preset-name">ポップ・キラキラ</span>
+                            <span class="preset-desc">明るくクリアな仕上がり</span>
                         </button>
                         <button class="preset-card" data-preset="rock">
-                            <span class="preset-emoji">櫨</span>
-                            <span class="preset-name">繝ｭ繝・け繝ｻ繝代Ρ繝輔Ν</span>
-                            <span class="preset-desc">蜉帛ｼｷ縺上※霑ｫ蜉帙・縺ゅｋ髻ｳ</span>
+                            <span class="preset-emoji">🔥</span>
+                            <span class="preset-name">ロック・パワフル</span>
+                            <span class="preset-desc">力強くて迫力のある音</span>
                         </button>
                         <button class="preset-card" data-preset="hiphop">
-                            <span class="preset-emoji">而</span>
-                            <span class="preset-name">繝偵ャ繝励・繝・・</span>
-                            <span class="preset-desc">菴朱浹縺悟柑縺・◆驥榊字繧ｵ繧ｦ繝ｳ繝・/span>
+                            <span class="preset-emoji">🎧</span>
+                            <span class="preset-name">ヒップホップ</span>
+                            <span class="preset-desc">低音が効いた重厚サウンド</span>
                         </button>
                         <button class="preset-card" data-preset="edm">
-                            <span class="preset-emoji">笞｡</span>
-                            <span class="preset-name">EDM繝ｻ繧ｯ繝ｩ繝・/span>
-                            <span class="preset-desc">繧ｨ繝阪Ν繧ｮ繝・す繝･縺ｧ繧｢繧ｲ繧｢繧ｲ</span>
+                            <span class="preset-emoji">⚡</span>
+                            <span class="preset-name">EDM・クラブ</span>
+                            <span class="preset-desc">エネルギッシュでアゲアゲ</span>
                         </button>
                         <button class="preset-card" data-preset="chill">
-                            <span class="preset-emoji">嫌</span>
-                            <span class="preset-name">繝√Ν繝ｻ縺翫□繧・°</span>
-                            <span class="preset-desc">繧・ｏ繧峨°縺剰誠縺｡逹縺・◆髻ｳ</span>
+                            <span class="preset-emoji">🌙</span>
+                            <span class="preset-name">チル・おだやか</span>
+                            <span class="preset-desc">やわらかく落ち着いた音</span>
                         </button>
                         <button class="preset-card" data-preset="vocal-up">
-                            <span class="preset-emoji">痔</span>
-                            <span class="preset-name">繝懊・繧ｫ繝ｫ髫帷ｫ九■</span>
-                            <span class="preset-desc">豁悟｣ｰ繧偵ｂ縺｣縺ｨ蜑阪↓蜃ｺ縺・/span>
+                            <span class="preset-emoji">🎤</span>
+                            <span class="preset-name">ボーカル際立ち</span>
+                            <span class="preset-desc">歌声をもっと前に出す</span>
                         </button>
                         <button class="preset-card" data-preset="bass-boost">
-                            <span class="preset-emoji">矧</span>
-                            <span class="preset-name">驥堺ｽ朱浹繝悶・繧ｹ繝・/span>
-                            <span class="preset-desc">繝吶・繧ｹ繧偵ぎ繝・Φ縺ｨ蠑ｷ隱ｿ</span>
+                            <span class="preset-emoji">🔊</span>
+                            <span class="preset-name">重低音ブースト</span>
+                            <span class="preset-desc">ベースをガツンと強調</span>
                         </button>
                         <button class="preset-card" data-preset="karaoke">
-                            <span class="preset-emoji">七</span>
-                            <span class="preset-name">繧ｫ繝ｩ繧ｪ繧ｱ鬚ｨ</span>
-                            <span class="preset-desc">繝懊・繧ｫ繝ｫ繧貞ｰ上＆縺上＠縺ｦ莨ｴ螂上Γ繧､繝ｳ</span>
+                            <span class="preset-emoji">🎵</span>
+                            <span class="preset-name">カラオケ風</span>
+                            <span class="preset-desc">ボーカルを小さくして伴奏メイン</span>
                         </button>
                     </div>
                 </div>
@@ -627,29 +630,29 @@
         <div id="modal-export" class="modal hidden">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h2>譖ｸ縺榊・縺苓ｨｭ螳・/h2>
+                    <h2>書き出し設定</h2>
                     <button class="modal-close">&times;</button>
                 </div>
                 <div class="modal-body">
                     <div class="export-option">
-                        <label>繝輔か繝ｼ繝槭ャ繝・/label>
+                        <label>フォーマット</label>
                         <select id="export-format">
-                            <option value="wav">WAV (鬮伜刀雉ｪ繝ｻ辟｡蝨ｧ邵ｮ)</option>
-                            <option value="mp3">MP3 (荳闊ｬ逧・・霆ｽ驥・</option>
-                            <option value="ogg">OGG (鬮伜刀雉ｪ繝ｻ霆ｽ驥・</option>
-                            <option value="flac">FLAC (繝ｭ繧ｹ繝ｬ繧ｹ蝨ｧ邵ｮ)</option>
+                            <option value="wav">WAV (高品質・無圧縮)</option>
+                            <option value="mp3">MP3 (一般的・軽量)</option>
+                            <option value="ogg">OGG (高品質・軽量)</option>
+                            <option value="flac">FLAC (ロスレス圧縮)</option>
                         </select>
                     </div>
                     <div class="export-option">
-                        <label>繧ｵ繝ｳ繝励Ν繝ｬ繝ｼ繝・/label>
+                        <label>サンプルレート</label>
                         <select id="export-samplerate">
-                            <option value="44100" selected>44100 Hz (CD蜩∬ｳｪ)</option>
-                            <option value="48000">48000 Hz (譏蜒冗畑)</option>
-                            <option value="96000">96000 Hz (繝上う繝ｬ繧ｾ)</option>
+                            <option value="44100" selected>44100 Hz (CD品質)</option>
+                            <option value="48000">48000 Hz (映像用)</option>
+                            <option value="96000">96000 Hz (ハイレゾ)</option>
                         </select>
                     </div>
                     <div class="export-option">
-                        <label>繝薙ャ繝域ｷｱ蠎ｦ</label>
+                        <label>ビット深度</label>
                         <select id="export-bitdepth">
                             <option value="16" selected>16-bit</option>
                             <option value="24">24-bit</option>
@@ -657,29 +660,30 @@
                         </select>
                     </div>
                     <div class="export-option">
-                        <label>繝弱・繝槭Λ繧､繧ｺ</label>
+                        <label>ノーマライズ</label>
                         <input type="checkbox" id="export-normalize" checked>
-                        <span>繝斐・繧ｯ繧・-0.3dB 縺ｫ豁｣隕丞喧</span>
+                        <span>ピークを -0.3dB に正規化</span>
                     </div>
                     <div class="export-option album-art-section">
-                        <label>繧｢繝ｫ繝舌Β繧｢繝ｼ繝・(莉ｻ諢・</label>
+                        <label>アルバムアート (任意)</label>
                         <div class="album-art-upload">
                             <div id="album-art-preview" class="album-art-preview">
                                 <i class="fas fa-image"></i>
-                                <span>逕ｻ蜒上ｒ驕ｸ謚・/span>
+                                <span>画像を選択</span>
                             </div>
                             <input type="file" id="album-art-input" accept="image/*" hidden>
-                            <button id="btn-remove-art" class="hidden">蜑企勁</button>
+                            <button id="btn-remove-art" class="hidden">削除</button>
                         </div>
                     </div>
                     <div class="export-option">
-                        <label>繝｡繧ｿ繝・・繧ｿ</label>
-                        <input type="text" id="export-title" placeholder="譖ｲ蜷・>
-                        <input type="text" id="export-artist" placeholder="繧｢繝ｼ繝・ぅ繧ｹ繝亥錐">
-                        <input type="text" id="export-album" placeholder="繧｢繝ｫ繝舌Β蜷・>
+                        <label>メタデータ</label>
+                        <input type="text" id="export-title" placeholder="曲名">
+                        <input type="text" id="export-artist" placeholder="アーティスト名">
+                        <input type="text" id="export-album" placeholder="アルバム名">
                     </div>
                     <button id="btn-do-export" class="primary-btn">
-                        <i class="fas fa-download"></i> 譖ｸ縺榊・縺・                    </button>
+                        <i class="fas fa-download"></i> 書き出し
+                    </button>
                 </div>
             </div>
         </div>
@@ -688,22 +692,22 @@
         <div id="modal-effects" class="modal hidden">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h2>繧ｨ繝輔ぉ繧ｯ繝郁ｿｽ蜉</h2>
+                    <h2>エフェクト追加</h2>
                     <button class="modal-close">&times;</button>
                 </div>
                 <div class="modal-body effect-grid">
-                    <button class="effect-card" data-effect="eq"><i class="fas fa-sliders-h"></i><span>繧､繧ｳ繝ｩ繧､繧ｶ繝ｼ</span><small>髻ｳ縺ｮ繝舌Λ繝ｳ繧ｹ隱ｿ謨ｴ</small></button>
-                    <button class="effect-card" data-effect="compressor"><i class="fas fa-compress-arrows-alt"></i><span>繧ｳ繝ｳ繝励Ξ繝・し繝ｼ</span><small>髻ｳ驥上ｒ蝮・ｸ蛹・/small></button>
-                    <button class="effect-card" data-effect="reverb"><i class="fas fa-church"></i><span>繝ｪ繝舌・繝・/span><small>髻ｿ縺阪ｒ霑ｽ蜉</small></button>
-                    <button class="effect-card" data-effect="delay"><i class="fas fa-clock"></i><span>繝・ぅ繝ｬ繧､</span><small>繧ｨ繧ｳ繝ｼ蜉ｹ譫・/small></button>
-                    <button class="effect-card" data-effect="chorus"><i class="fas fa-users"></i><span>繧ｳ繝ｼ繝ｩ繧ｹ</span><small>蜴壹∩繧定ｿｽ蜉</small></button>
-                    <button class="effect-card" data-effect="distortion"><i class="fas fa-bolt"></i><span>繝・ぅ繧ｹ繝医・繧ｷ繝ｧ繝ｳ</span><small>髻ｳ繧呈ｭｪ縺ｾ縺帙ｋ</small></button>
-                    <button class="effect-card" data-effect="filter"><i class="fas fa-filter"></i><span>繝輔ぅ繝ｫ繧ｿ繝ｼ</span><small>蜻ｨ豕｢謨ｰ繧ｫ繝・ヨ</small></button>
-                    <button class="effect-card" data-effect="gate"><i class="fas fa-door-open"></i><span>繧ｲ繝ｼ繝・/span><small>蟆上＆縺・浹繧偵き繝・ヨ</small></button>
-                    <button class="effect-card" data-effect="phaser"><i class="fas fa-wave-square"></i><span>繝輔ぉ繧､繧ｶ繝ｼ</span><small>縺・・繧翫お繝輔ぉ繧ｯ繝・/small></button>
-                    <button class="effect-card" data-effect="stereo-enhancer"><i class="fas fa-headphones"></i><span>繧ｹ繝・Ξ繧ｪ繧ｨ繝ｳ繝上Φ繧ｵ繝ｼ</span><small>蟾ｦ蜿ｳ縺ｮ蠎・′繧・/small></button>
-                    <button class="effect-card" data-effect="pitch-shift"><i class="fas fa-arrow-up"></i><span>繝斐ャ繝√す繝輔ヨ</span><small>髻ｳ遞九・荳贋ｸ・/small></button>
-                    <button class="effect-card" data-effect="tape-saturation"><i class="fas fa-compact-disc"></i><span>繝・・繝励し繝√Η繝ｬ繝ｼ繧ｷ繝ｧ繝ｳ</span><small>繧｢繝翫Ο繧ｰ諢・/small></button>
+                    <button class="effect-card" data-effect="eq"><i class="fas fa-sliders-h"></i><span>イコライザー</span><small>音のバランス調整</small></button>
+                    <button class="effect-card" data-effect="compressor"><i class="fas fa-compress-arrows-alt"></i><span>コンプレッサー</span><small>音量を均一化</small></button>
+                    <button class="effect-card" data-effect="reverb"><i class="fas fa-church"></i><span>リバーブ</span><small>響きを追加</small></button>
+                    <button class="effect-card" data-effect="delay"><i class="fas fa-clock"></i><span>ディレイ</span><small>エコー効果</small></button>
+                    <button class="effect-card" data-effect="chorus"><i class="fas fa-users"></i><span>コーラス</span><small>厚みを追加</small></button>
+                    <button class="effect-card" data-effect="distortion"><i class="fas fa-bolt"></i><span>ディストーション</span><small>音を歪ませる</small></button>
+                    <button class="effect-card" data-effect="filter"><i class="fas fa-filter"></i><span>フィルター</span><small>周波数カット</small></button>
+                    <button class="effect-card" data-effect="gate"><i class="fas fa-door-open"></i><span>ゲート</span><small>小さい音をカット</small></button>
+                    <button class="effect-card" data-effect="phaser"><i class="fas fa-wave-square"></i><span>フェイザー</span><small>うねりエフェクト</small></button>
+                    <button class="effect-card" data-effect="stereo-enhancer"><i class="fas fa-headphones"></i><span>ステレオエンハンサー</span><small>左右の広がり</small></button>
+                    <button class="effect-card" data-effect="pitch-shift"><i class="fas fa-arrow-up"></i><span>ピッチシフト</span><small>音程の上下</small></button>
+                    <button class="effect-card" data-effect="tape-saturation"><i class="fas fa-compact-disc"></i><span>テープサチュレーション</span><small>アナログ感</small></button>
                 </div>
             </div>
         </div>
@@ -712,25 +716,25 @@
         <div id="modal-stem" class="modal hidden">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h2>髻ｳ貅仙・髮｢</h2>
+                    <h2>音源分離</h2>
                     <button class="modal-close">&times;</button>
                 </div>
                 <div class="modal-body">
-                    <p>驕ｸ謚槭＠縺溘ヨ繝ｩ繝・け縺ｮ髻ｳ貅舌ｒ閾ｪ蜍募・髮｢縺励∪縺吶・/p>
+                    <p>選択したトラックの音源を自動分離します。</p>
                     <div class="stem-options">
-                        <label><input type="checkbox" checked data-stem="vocals"> 繝懊・繧ｫ繝ｫ</label>
-                        <label><input type="checkbox" checked data-stem="drums"> 繝峨Λ繝</label>
-                        <label><input type="checkbox" checked data-stem="bass"> 繝吶・繧ｹ</label>
-                        <label><input type="checkbox" checked data-stem="other"> 縺昴・莉・/label>
+                        <label><input type="checkbox" checked data-stem="vocals"> ボーカル</label>
+                        <label><input type="checkbox" checked data-stem="drums"> ドラム</label>
+                        <label><input type="checkbox" checked data-stem="bass"> ベース</label>
+                        <label><input type="checkbox" checked data-stem="other"> その他</label>
                     </div>
                     <div class="stem-quality">
-                        <label>蛻・屬蜩∬ｳｪ:</label>
-                        <select id="stem-quality"><option value="fast">鬮倬・/option><option value="normal" selected>讓呎ｺ・/option><option value="high">鬮伜刀雉ｪ</option></select>
+                        <label>分離品質:</label>
+                        <select id="stem-quality"><option value="fast">高速</option><option value="normal" selected>標準</option><option value="high">高品質</option></select>
                     </div>
-                    <button id="btn-do-stem-split" class="primary-btn"><i class="fas fa-project-diagram"></i> 蛻・屬髢句ｧ・/button>
+                    <button id="btn-do-stem-split" class="primary-btn"><i class="fas fa-project-diagram"></i> 分離開始</button>
                     <div id="stem-progress" class="hidden">
                         <div class="progress-bar"><div class="progress-fill"></div></div>
-                        <span class="progress-text">蜃ｦ逅・ｸｭ...</span>
+                        <span class="progress-text">処理中...</span>
                     </div>
                 </div>
             </div>
@@ -740,60 +744,61 @@
         <div id="modal-creator" class="modal hidden">
             <div class="modal-content creator-modal">
                 <div class="modal-header">
-                    <h2><i class="fas fa-shopping-bag"></i> Booth邏譚舌ｒ菴懊ｋ</h2>
+                    <h2><i class="fas fa-shopping-bag"></i> Booth素材を作る</h2>
                     <button class="modal-close">&times;</button>
                 </div>
                 <div class="creator-tabs">
                     <button class="creator-tab active" data-tab="loop">
-                        <span class="creator-tab-icon">煤</span>
-                        <span class="creator-tab-name">繝ｫ繝ｼ繝怜刈蟾･</span>
-                        <span class="creator-tab-badge hot">譛螢ｲ繧・/span>
+                        <span class="creator-tab-icon">🔁</span>
+                        <span class="creator-tab-name">ループ加工</span>
+                        <span class="creator-tab-badge hot">最売れ</span>
                     </button>
                     <button class="creator-tab" data-tab="vocal">
-                        <span class="creator-tab-icon">痔</span>
-                        <span class="creator-tab-name">繝懊・繧ｫ繝ｫ髯､蜴ｻ</span>
-                        <span class="creator-tab-badge">髴隕∝､ｧ</span>
+                        <span class="creator-tab-icon">🎤</span>
+                        <span class="creator-tab-name">ボーカル除去</span>
+                        <span class="creator-tab-badge">需要大</span>
                     </button>
                     <button class="creator-tab" data-tab="bpm">
-                        <span class="creator-tab-icon">七</span>
-                        <span class="creator-tab-name">BPM螟画鋤</span>
-                        <span class="creator-tab-badge">1邏譚絶・螟壼膚蜩・/span>
+                        <span class="creator-tab-icon">🎵</span>
+                        <span class="creator-tab-name">BPM変換</span>
+                        <span class="creator-tab-badge">1素材→多商品</span>
                     </button>
                 </div>
 
-                <!-- 竭 Loop Panel -->
+                <!-- ① Loop Panel -->
                 <div class="creator-panel active" id="creator-panel-loop">
                     <div class="creator-intro">
-                        <p class="creator-intro-text">式 繧ｲ繝ｼ繝BGM繝ｻ菴懈･ｭ逕ｨBGM蜷代￠縺ｫ縲・strong>譖ｲ縺碁泌・繧後★繝ｫ繝ｼ繝・/strong>縺吶ｋ繝輔ぃ繧､繝ｫ繧剃ｽ懊ｊ縺ｾ縺吶・br>Booth縺ｧ譛繧ょ｣ｲ繧後ｋ繧ｸ繝｣繝ｳ繝ｫ縺ｧ縺吶・/p>
+                        <p class="creator-intro-text">🎮 ゲームBGM・作業用BGM向けに、<strong>曲が途切れずループ</strong>するファイルを作ります。<br>Boothで最も売れるジャンルです。</p>
                     </div>
                     <div class="creator-source-info" id="loop-source-info">
-                        <i class="fas fa-info-circle"></i> <span id="loop-source-name">縺ｾ縺壽峇繧偵い繝・・繝ｭ繝ｼ繝峨＠縺ｦ縺上□縺輔＞</span>
+                        <i class="fas fa-info-circle"></i> <span id="loop-source-name">まず曲をアップロードしてください</span>
                     </div>
                     <div class="creator-settings">
                         <div class="creator-setting-row">
-                            <label>繝ｫ繝ｼ繝礼ｵゆｺ・せ</label>
+                            <label>ループ終了点</label>
                             <div class="creator-setting-control">
-                                <label class="radio-label"><input type="radio" name="loop-end-mode" value="auto" checked> 閾ｪ蜍墓､懷・・医♀縺吶☆繧・ｼ・/label>
-                                <label class="radio-label"><input type="radio" name="loop-end-mode" value="manual"> 謇句虚縺ｧ險ｭ螳・/label>
+                                <label class="radio-label"><input type="radio" name="loop-end-mode" value="auto" checked> 自動検出（おすすめ）</label>
+                                <label class="radio-label"><input type="radio" name="loop-end-mode" value="manual"> 手動で設定</label>
                                 <div id="loop-end-manual" class="hidden" style="margin-top:8px">
-                                    <input type="number" id="loop-end-sec" min="0" step="0.1" value="30" style="width:80px"> 遘・                                </div>
+                                    <input type="number" id="loop-end-sec" min="0" step="0.1" value="30" style="width:80px"> 秒
+                                </div>
                             </div>
                         </div>
                         <div class="creator-setting-row">
-                            <label>繧ｯ繝ｭ繧ｹ繝輔ぉ繝ｼ繝蛾聞</label>
+                            <label>クロスフェード長</label>
                             <div class="creator-setting-control">
                                 <input type="range" id="loop-fade-length" min="0.5" max="8" step="0.5" value="3">
-                                <span id="loop-fade-value" class="setting-value">3.0 遘・/span>
-                                <p class="setting-hint">髟ｷ縺・⊇縺ｩ閾ｪ辟ｶ縺ｫ縺ｪ繧翫∪縺吶′蜃ｦ逅・′驥阪￥縺ｪ繧翫∪縺・/p>
+                                <span id="loop-fade-value" class="setting-value">3.0 秒</span>
+                                <p class="setting-hint">長いほど自然になりますが処理が重くなります</p>
                             </div>
                         </div>
                     </div>
                     <div class="creator-actions">
                         <button id="btn-creator-loop-preview" class="creator-preview-btn" disabled>
-                            <i class="fas fa-play"></i> 繝励Ξ繝薙Η繝ｼ
+                            <i class="fas fa-play"></i> プレビュー
                         </button>
                         <button id="btn-creator-loop-process" class="creator-process-btn" disabled>
-                            <i class="fas fa-magic"></i> 繝ｫ繝ｼ繝励ｒ菴懈・縺吶ｋ
+                            <i class="fas fa-magic"></i> ループを作成する
                         </button>
                     </div>
                     <div id="creator-loop-result" class="creator-result hidden">
@@ -802,52 +807,55 @@
                         </div>
                         <div class="result-info">
                             <span id="loop-result-duration"></span>
-                            <span class="result-badge">笨・繧ｷ繝ｼ繝繝ｬ繧ｹ繝ｫ繝ｼ繝・/span>
+                            <span class="result-badge">✅ シームレスループ</span>
                         </div>
                         <button id="btn-creator-loop-export" class="creator-export-btn">
-                            <i class="fas fa-download"></i> WAV縺ｧ譖ｸ縺榊・縺・                        </button>
+                            <i class="fas fa-download"></i> WAVで書き出し
+                        </button>
                     </div>
                 </div>
 
-                <!-- 竭｡ Vocal Panel -->
+                <!-- ② Vocal Panel -->
                 <div class="creator-panel" id="creator-panel-vocal">
                     <div class="creator-intro">
-                        <p class="creator-intro-text">児・・繝懊・繧ｫ繝ｫ譖ｲ縺九ｉ<strong>繧､繝ｳ繧ｹ繝育沿・医き繝ｩ繧ｪ繧ｱ迚茨ｼ・/strong>繧定・蜍慕函謌舌＠縺ｾ縺吶・br>蜍慕判BGM繝ｻ繧ｫ繝ｩ繧ｪ繧ｱ逕ｨ騾斐〒髴隕∝､ｧ縲・/p>
+                        <p class="creator-intro-text">🎙️ ボーカル曲から<strong>インスト版（カラオケ版）</strong>を自動生成します。<br>動画BGM・カラオケ用途で需要大。</p>
                     </div>
                     <div class="creator-source-info">
-                        <i class="fas fa-info-circle"></i> <span id="vocal-source-name">縺ｾ縺壽峇繧偵い繝・・繝ｭ繝ｼ繝峨＠縺ｦ縺上□縺輔＞</span>
+                        <i class="fas fa-info-circle"></i> <span id="vocal-source-name">まず曲をアップロードしてください</span>
                     </div>
                     <div class="creator-settings">
                         <div class="creator-setting-row">
-                            <label>髯､蜴ｻ譁ｹ豕・/label>
+                            <label>除去方法</label>
                             <div class="creator-setting-control">
                                 <label class="radio-label">
                                     <input type="radio" name="vocal-method" value="stems" checked>
-                                    繧ｹ繝・Β蛻・屬・磯ｫ伜刀雉ｪ繝ｻ驕・＞・・                                </label>
+                                    ステム分離（高品質・遅い）
+                                </label>
                                 <label class="radio-label">
                                     <input type="radio" name="vocal-method" value="midside">
-                                    Mid/Side蜃ｦ逅・ｼ磯ｫ倬溘・邁｡譏難ｼ・                                </label>
+                                    Mid/Side処理（高速・簡易）
+                                </label>
                             </div>
                         </div>
                         <div class="creator-setting-row" id="vocal-reduction-row">
-                            <label>髯､蜴ｻ驥・/label>
+                            <label>除去量</label>
                             <div class="creator-setting-control">
                                 <input type="range" id="vocal-reduction" min="0.5" max="1.0" step="0.05" value="0.9">
                                 <span id="vocal-reduction-value" class="setting-value">90%</span>
-                                <p class="setting-hint">100%縺ｧ螳悟・髯､蜴ｻ縲ょｰ代＠谿九☆縺ｨ閾ｪ辟ｶ縺ｫ閨ｴ縺薙∴繧句ｴ蜷医ｂ</p>
+                                <p class="setting-hint">100%で完全除去。少し残すと自然に聴こえる場合も</p>
                             </div>
                         </div>
                         <div class="creator-setting-row" id="vocal-mix-row" style="display:none">
-                            <label>繝懊・繧ｫ繝ｫ谿九＠驥・/label>
+                            <label>ボーカル残し量</label>
                             <div class="creator-setting-control">
                                 <input type="range" id="vocal-mix-amount" min="0" max="0.3" step="0.01" value="0">
-                                <span id="vocal-mix-value" class="setting-value">0%・亥ｮ悟・髯､蜴ｻ・・/span>
+                                <span id="vocal-mix-value" class="setting-value">0%（完全除去）</span>
                             </div>
                         </div>
                     </div>
                     <div class="creator-actions">
                         <button id="btn-creator-vocal-process" class="creator-process-btn" disabled>
-                            <i class="fas fa-magic"></i> 繧､繝ｳ繧ｹ繝育沿繧剃ｽ懈・縺吶ｋ
+                            <i class="fas fa-magic"></i> インスト版を作成する
                         </button>
                     </div>
                     <div id="creator-vocal-result" class="creator-result hidden">
@@ -856,33 +864,34 @@
                         </div>
                         <div class="result-info">
                             <span id="vocal-result-duration"></span>
-                            <span class="result-badge">笨・繝懊・繧ｫ繝ｫ髯､蜴ｻ貂医∩</span>
+                            <span class="result-badge">✅ ボーカル除去済み</span>
                         </div>
                         <button id="btn-creator-vocal-export" class="creator-export-btn">
-                            <i class="fas fa-download"></i> WAV縺ｧ譖ｸ縺榊・縺・                        </button>
+                            <i class="fas fa-download"></i> WAVで書き出し
+                        </button>
                     </div>
                 </div>
 
-                <!-- 竭｢ BPM Panel -->
+                <!-- ③ BPM Panel -->
                 <div class="creator-panel" id="creator-panel-bpm">
                     <div class="creator-intro">
-                        <p class="creator-intro-text">識 <strong>蜷後§譖ｲ繧定､・焚縺ｮBPM縺ｧ譖ｸ縺榊・縺・/strong>縲・邏譚舌°繧芽､・焚蝠・刀繧剃ｽ懊ｌ縺ｾ縺吶・br>80BPM繝ｻ100BPM繝ｻ120BPM縺ｪ縺ｩ縲∫畑騾泌挨縺ｫ蜃ｺ蜩√＠縺ｾ縺励ｇ縺・・/p>
+                        <p class="creator-intro-text">🎯 <strong>同じ曲を複数のBPMで書き出し</strong>、1素材から複数商品を作れます。<br>80BPM・100BPM・120BPMなど、用途別に出品しましょう。</p>
                     </div>
                     <div class="creator-source-info">
-                        <i class="fas fa-info-circle"></i> <span id="bpm-source-name">縺ｾ縺壽峇繧偵い繝・・繝ｭ繝ｼ繝峨＠縺ｦ縺上□縺輔＞</span>
+                        <i class="fas fa-info-circle"></i> <span id="bpm-source-name">まず曲をアップロードしてください</span>
                     </div>
                     <div class="creator-settings">
                         <div class="creator-setting-row">
-                            <label>蜈・・BPM</label>
+                            <label>元のBPM</label>
                             <div class="creator-setting-control bpm-detect-row">
                                 <input type="number" id="bpm-original" min="40" max="300" step="1" value="120" style="width:80px">
                                 <button id="btn-bpm-detect" class="detect-btn" disabled>
-                                    <i class="fas fa-search"></i> 閾ｪ蜍墓､懷・
+                                    <i class="fas fa-search"></i> 自動検出
                                 </button>
                             </div>
                         </div>
                         <div class="creator-setting-row">
-                            <label>螟画鋤蠕沓PM</label>
+                            <label>変換後BPM</label>
                             <div class="creator-setting-control">
                                 <input type="range" id="bpm-target" min="60" max="200" step="1" value="120">
                                 <span id="bpm-target-value" class="setting-value bpm-value">120 BPM</span>
@@ -896,13 +905,13 @@
                                     <button class="bpm-quick-btn" data-bpm="140">140</button>
                                     <button class="bpm-quick-btn" data-bpm="160">160</button>
                                 </div>
-                                <p class="setting-hint" id="bpm-ratio-hint">螟画鋤豈皮紫: 1.00x・亥､画鋤縺ｪ縺暦ｼ・/p>
+                                <p class="setting-hint" id="bpm-ratio-hint">変換比率: 1.00x（変換なし）</p>
                             </div>
                         </div>
                     </div>
                     <div class="creator-actions">
                         <button id="btn-creator-bpm-process" class="creator-process-btn" disabled>
-                            <i class="fas fa-magic"></i> BPM螟画鋤縺吶ｋ
+                            <i class="fas fa-magic"></i> BPM変換する
                         </button>
                     </div>
                     <div id="creator-bpm-result" class="creator-result hidden">
@@ -911,17 +920,18 @@
                         </div>
                         <div class="result-info">
                             <span id="bpm-result-duration"></span>
-                            <span class="result-badge" id="bpm-result-badge">笨・BPM螟画鋤貂医∩</span>
+                            <span class="result-badge" id="bpm-result-badge">✅ BPM変換済み</span>
                         </div>
                         <button id="btn-creator-bpm-export" class="creator-export-btn">
-                            <i class="fas fa-download"></i> WAV縺ｧ譖ｸ縺榊・縺・                        </button>
+                            <i class="fas fa-download"></i> WAVで書き出し
+                        </button>
                     </div>
                 </div>
 
                 <!-- Progress overlay -->
                 <div id="creator-progress" class="creator-progress hidden">
                     <div class="creator-spinner"></div>
-                    <p id="creator-progress-text">蜃ｦ逅・ｸｭ...</p>
+                    <p id="creator-progress-text">処理中...</p>
                     <div class="creator-progress-bar">
                         <div class="creator-progress-fill" id="creator-progress-fill"></div>
                     </div>
@@ -933,66 +943,67 @@
         <div id="modal-settings" class="modal hidden">
             <div class="modal-content settings-modal">
                 <div class="modal-header">
-                    <h2><i class="fas fa-cog"></i> 險ｭ螳・/h2>
+                    <h2><i class="fas fa-cog"></i> 設定</h2>
                     <button class="modal-close">&times;</button>
                 </div>
                 <div class="modal-body">
-                    <!-- 繝代せ繝ｯ繝ｼ繝牙､画峩 -->
+                    <!-- パスワード変更 -->
                     <div class="settings-section">
-                        <h3 class="settings-section-title"><i class="fas fa-lock"></i> 繝代せ繝ｯ繝ｼ繝牙､画峩</h3>
-                        <p class="settings-desc">譁ｰ縺励＞繝代せ繝ｯ繝ｼ繝峨ｒ險ｭ螳壹＠縺ｾ縺吶ょ､画峩蠕後・譁ｰ縺励＞繝代せ繝ｯ繝ｼ繝峨〒繝ｭ繧ｰ繧､繝ｳ縺励※縺上□縺輔＞縲・/p>
+                        <h3 class="settings-section-title"><i class="fas fa-lock"></i> パスワード変更</h3>
+                        <p class="settings-desc">新しいパスワードを設定します。変更後は新しいパスワードでログインしてください。</p>
                         <div class="settings-form">
                             <div class="settings-field">
-                                <label>迴ｾ蝨ｨ縺ｮ繝代せ繝ｯ繝ｼ繝・/label>
+                                <label>現在のパスワード</label>
                                 <div class="pw-input-wrap">
-                                    <input type="password" id="settings-pw-current" placeholder="迴ｾ蝨ｨ縺ｮ繝代せ繝ｯ繝ｼ繝峨ｒ蜈･蜉・ autocomplete="current-password">
+                                    <input type="password" id="settings-pw-current" placeholder="現在のパスワードを入力" autocomplete="current-password">
                                     <button type="button" class="pw-toggle-btn" data-target="settings-pw-current"><i class="fas fa-eye"></i></button>
                                 </div>
                             </div>
                             <div class="settings-field">
-                                <label>譁ｰ縺励＞繝代せ繝ｯ繝ｼ繝・/label>
+                                <label>新しいパスワード</label>
                                 <div class="pw-input-wrap">
-                                    <input type="password" id="settings-pw-new" placeholder="譁ｰ縺励＞繝代せ繝ｯ繝ｼ繝峨ｒ蜈･蜉幢ｼ・譁・ｭ嶺ｻ･荳奇ｼ・ autocomplete="new-password">
+                                    <input type="password" id="settings-pw-new" placeholder="新しいパスワードを入力（6文字以上）" autocomplete="new-password">
                                     <button type="button" class="pw-toggle-btn" data-target="settings-pw-new"><i class="fas fa-eye"></i></button>
                                 </div>
                             </div>
                             <div class="settings-field">
-                                <label>譁ｰ縺励＞繝代せ繝ｯ繝ｼ繝会ｼ育｢ｺ隱搾ｼ・/label>
+                                <label>新しいパスワード（確認）</label>
                                 <div class="pw-input-wrap">
-                                    <input type="password" id="settings-pw-confirm" placeholder="繧ゅ≧荳蠎ｦ蜈･蜉・ autocomplete="new-password">
+                                    <input type="password" id="settings-pw-confirm" placeholder="もう一度入力" autocomplete="new-password">
                                     <button type="button" class="pw-toggle-btn" data-target="settings-pw-confirm"><i class="fas fa-eye"></i></button>
                                 </div>
                             </div>
                             <p id="settings-pw-error" class="settings-error hidden"></p>
                             <p id="settings-pw-success" class="settings-success hidden"></p>
                             <button id="btn-change-password" class="settings-save-btn">
-                                <i class="fas fa-key"></i> 繝代せ繝ｯ繝ｼ繝峨ｒ螟画峩縺吶ｋ
+                                <i class="fas fa-key"></i> パスワードを変更する
                             </button>
                         </div>
                     </div>
 
                     <div class="settings-divider"></div>
 
-                    <!-- 繝ｭ繧ｰ繧｢繧ｦ繝・-->
+                    <!-- ログアウト -->
                     <div class="settings-section">
-                        <h3 class="settings-section-title"><i class="fas fa-sign-out-alt"></i> 繝ｭ繧ｰ繧｢繧ｦ繝・/h3>
-                        <p class="settings-desc">縺薙・繝・ヰ繧､繧ｹ縺九ｉ繝ｭ繧ｰ繧｢繧ｦ繝医＠縺ｾ縺吶よｬ｡蝗槭い繧ｯ繧ｻ繧ｹ譎ゅ↓繝代せ繝ｯ繝ｼ繝峨′蠢・ｦ√〒縺吶・/p>
+                        <h3 class="settings-section-title"><i class="fas fa-sign-out-alt"></i> ログアウト</h3>
+                        <p class="settings-desc">このデバイスからログアウトします。次回アクセス時にパスワードが必要です。</p>
                         <button id="btn-settings-logout" class="settings-logout-btn">
-                            <i class="fas fa-sign-out-alt"></i> 繝ｭ繧ｰ繧｢繧ｦ繝・                        </button>
+                            <i class="fas fa-sign-out-alt"></i> ログアウト
+                        </button>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- AI讖溯・隱ｬ譏弱Δ繝ｼ繝繝ｫ -->
+        <!-- AI機能説明モーダル -->
         <div id="modal-ai-info" class="modal hidden">
             <div class="modal-content ai-info-modal">
                 <div class="modal-header">
-                    <h2 id="ai-info-title"><i class="fas fa-robot"></i> AI讖溯・</h2>
+                    <h2 id="ai-info-title"><i class="fas fa-robot"></i> AI機能</h2>
                     <button class="modal-close">&times;</button>
                 </div>
                 <div class="modal-body" id="ai-info-body">
-                    <!-- 蜍慕噪縺ｫ謖ｿ蜈･ -->
+                    <!-- 動的に挿入 -->
                 </div>
             </div>
         </div>
@@ -1001,7 +1012,7 @@
         <div id="drop-zone" class="hidden">
             <div class="drop-zone-content">
                 <i class="fas fa-cloud-upload-alt fa-3x"></i>
-                <p>縺薙％縺ｫ繝峨Ο繝・・</p>
+                <p>ここにドロップ</p>
             </div>
         </div>
 
@@ -1012,7 +1023,7 @@
         <div id="loading-overlay" class="hidden">
             <div class="loading-content">
                 <div class="spinner"></div>
-                <p id="loading-text">蜃ｦ逅・ｸｭ...</p>
+                <p id="loading-text">処理中...</p>
                 <div class="progress-bar"><div class="progress-fill" id="loading-progress"></div></div>
             </div>
         </div>
@@ -1022,19 +1033,19 @@
     <input type="file" id="file-input-multiple" accept="audio/*" multiple hidden>
 
     <script src="js/auth.js"></script>
-    <script src="js/storage.js?v=de82261"></script>
-    <script src="js/audio-engine.js?v=de82261"></script>
-    <script src="js/waveform.js?v=de82261"></script>
-    <script src="js/effects.js?v=de82261"></script>
-    <script src="js/stem-separator.js?v=de82261"></script>
-    <script src="js/vocal-processor.js?v=de82261"></script>
-    <script src="js/automation.js?v=de82261"></script>
-    <script src="js/mastering.js?v=de82261"></script>
-    <script src="js/remix.js?v=de82261"></script>
-    <script src="js/pro-tools.js?v=de82261"></script>
-    <script src="js/midi-converter.js?v=de82261"></script>
-    <script src="js/export-manager.js?v=de82261"></script>
-    <script src="js/creator.js?v=de82261"></script>
-    <script src="js/app.js?v=de82261"></script>
+    <script src="js/storage.js?v=9bcbb38"></script>
+    <script src="js/audio-engine.js?v=9bcbb38"></script>
+    <script src="js/waveform.js?v=9bcbb38"></script>
+    <script src="js/effects.js?v=9bcbb38"></script>
+    <script src="js/stem-separator.js?v=9bcbb38"></script>
+    <script src="js/vocal-processor.js?v=9bcbb38"></script>
+    <script src="js/automation.js?v=9bcbb38"></script>
+    <script src="js/mastering.js?v=9bcbb38"></script>
+    <script src="js/remix.js?v=9bcbb38"></script>
+    <script src="js/pro-tools.js?v=9bcbb38"></script>
+    <script src="js/midi-converter.js?v=9bcbb38"></script>
+    <script src="js/export-manager.js?v=9bcbb38"></script>
+    <script src="js/creator.js?v=9bcbb38"></script>
+    <script src="js/app.js?v=9bcbb38"></script>
 </body>
 </html>
