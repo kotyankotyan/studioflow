@@ -462,18 +462,14 @@ class StudioFlowDAW {
 
             grid.appendChild(card);
 
-            // Draw mini waveform: width>0になるまでリトライ（display:none / 背景タブ対策）
-            const _tryDrawCard = (attempts) => {
-                const canvas = card.querySelector('canvas');
+            // Draw mini waveform（フォールバック付きで即描画 + 念のため遅延でも再描画）
+            const _drawCard = () => {
+                const canvas = card.querySelector('.part-waveform canvas');
                 if (!canvas || !track.clips[0]?.buffer) return;
-                const r = canvas.getBoundingClientRect();
-                if (r.width > 0) {
-                    this.waveform.drawClipWaveform(canvas, track.clips[0].buffer, 0, track.clips[0].duration);
-                } else if (attempts < 20) {
-                    setTimeout(() => _tryDrawCard(attempts + 1), 100);
-                }
+                this.waveform.drawClipWaveform(canvas, track.clips[0].buffer, 0, track.clips[0].duration);
             };
-            setTimeout(() => _tryDrawCard(0), 0);
+            setTimeout(_drawCard, 0);
+            setTimeout(_drawCard, 300); // レイアウト確定後に再描画
         });
 
         area.appendChild(grid);
@@ -1510,15 +1506,12 @@ class StudioFlowDAW {
         canvasArea.appendChild(clipDiv);
 
         // 描画: width>0 になるまで最大20回リトライ（display:none / 背景タブ対策）
-        const _tryDrawClip = (attempts) => {
-            const r = clipCanvas.getBoundingClientRect();
-            if (r.width > 0) {
-                this.waveform.drawClipWaveform(clipCanvas, clip.buffer, clip.offset || 0, clip.duration);
-            } else if (attempts < 20) {
-                setTimeout(() => _tryDrawClip(attempts + 1), 100);
-            }
+        // フォールバック付きで即描画 + 遅延で再描画（display:none 親対策）
+        const _drawClip = () => {
+            this.waveform.drawClipWaveform(clipCanvas, clip.buffer, clip.offset || 0, clip.duration);
         };
-        setTimeout(() => _tryDrawClip(0), 0);
+        setTimeout(_drawClip, 0);
+        setTimeout(_drawClip, 300);
         this._updateCanvasAreaWidths();
     }
 

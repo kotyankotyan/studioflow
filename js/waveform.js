@@ -17,12 +17,15 @@ class WaveformRenderer {
         const dpr = window.devicePixelRatio || 1;
         const rect = canvas.getBoundingClientRect();
 
-        canvas.width = rect.width * dpr;
-        canvas.height = rect.height * dpr;
+        const cssWidth  = rect.width  || canvas.offsetWidth  || canvas.parentElement?.offsetWidth  || 300;
+        const cssHeight = rect.height || canvas.offsetHeight || canvas.parentElement?.offsetHeight || 64;
+
+        canvas.width  = cssWidth  * dpr;
+        canvas.height = cssHeight * dpr;
         ctx.scale(dpr, dpr);
 
-        const width = rect.width;
-        const height = rect.height;
+        const width  = cssWidth;
+        const height = cssHeight;
         const color = options.color || this.colors.waveform;
 
         ctx.clearRect(0, 0, width, height);
@@ -71,12 +74,17 @@ class WaveformRenderer {
         const dpr = window.devicePixelRatio || 1;
         const rect = canvas.getBoundingClientRect();
 
-        canvas.width = rect.width * dpr;
-        canvas.height = rect.height * dpr;
+        // getBoundingClientRect が 0 を返す場合（display:none の親など）は
+        // offsetWidth / parentElement / 固定値でフォールバック
+        const cssWidth  = rect.width  || canvas.offsetWidth  || canvas.parentElement?.offsetWidth  || canvas.parentElement?.clientWidth  || 300;
+        const cssHeight = rect.height || canvas.offsetHeight || canvas.parentElement?.offsetHeight || canvas.parentElement?.clientHeight || 64;
+
+        canvas.width  = cssWidth  * dpr;
+        canvas.height = cssHeight * dpr;
         ctx.scale(dpr, dpr);
 
-        const width = rect.width;
-        const height = rect.height;
+        const width  = cssWidth;
+        const height = cssHeight;
 
         ctx.clearRect(0, 0, width, height);
 
