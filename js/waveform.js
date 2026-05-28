@@ -72,7 +72,7 @@ class WaveformRenderer {
         ctx.globalAlpha = 1;
     }
 
-    drawClipWaveform(canvas, buffer, clipStart, clipDuration, zoom = 1) {
+    drawClipWaveform(canvas, buffer, clipStart, clipDuration, zoom = 1, gain = 1.0) {
         const ctx = canvas.getContext('2d');
         const dpr = window.devicePixelRatio || 1;
         const rect = canvas.getBoundingClientRect();
@@ -112,11 +112,22 @@ class WaveformRenderer {
         const step = Math.max(1, Math.ceil(totalSamples / width));
         const amp = height / 2;
 
-        // 明るいグラジェントで視認性を高める
+        // ゲインに応じて波形色を変化（クリップ時は赤）
+        const isClipping = gain > 1.2;
         const gradient = ctx.createLinearGradient(0, 0, 0, height);
-        gradient.addColorStop(0,   'rgba(100, 180, 255, 0.85)');
-        gradient.addColorStop(0.5, 'rgba(74,  158, 255, 1.0)');
-        gradient.addColorStop(1,   'rgba(100, 180, 255, 0.85)');
+        if (isClipping) {
+            gradient.addColorStop(0,   'rgba(255, 100, 100, 0.85)');
+            gradient.addColorStop(0.5, 'rgba(233,  69,  96, 1.0)');
+            gradient.addColorStop(1,   'rgba(255, 100, 100, 0.85)');
+        } else if (gain < 0.5) {
+            gradient.addColorStop(0,   'rgba(100, 180, 150, 0.7)');
+            gradient.addColorStop(0.5, 'rgba( 60, 160, 120, 0.9)');
+            gradient.addColorStop(1,   'rgba(100, 180, 150, 0.7)');
+        } else {
+            gradient.addColorStop(0,   'rgba(100, 180, 255, 0.85)');
+            gradient.addColorStop(0.5, 'rgba( 74, 158, 255, 1.0)');
+            gradient.addColorStop(1,   'rgba(100, 180, 255, 0.85)');
+        }
         ctx.fillStyle = gradient;
 
         for (let i = 0; i < width; i++) {
@@ -127,8 +138,11 @@ class WaveformRenderer {
                 if (datum < min) min = datum;
                 if (datum > max) max = datum;
             }
-            const yMin = (1 + min) * amp;
-            const yMax = (1 + max) * amp;
+            // ゲインを振幅に反映（clamp して視覚的に±1の範囲に収める）
+            const gainedMin = Math.max(-1, min * gain);
+            const gainedMax = Math.min( 1, max * gain);
+            const yMin = (1 + gainedMin) * amp;
+            const yMax = (1 + gainedMax) * amp;
             ctx.fillRect(i, yMax, 1, Math.max(1, yMin - yMax));
         }
 
@@ -139,6 +153,16 @@ class WaveformRenderer {
         ctx.moveTo(0, amp);
         ctx.lineTo(width, amp);
         ctx.stroke();
+
+        // ゲイン表示（1.0以外の場合はラベル表示）
+        if (Math.abs(gain - 1.0) > 0.02) {
+            const db = 20 * Math.log10(gain);
+            const sign = db >= 0 ? '+' : '';
+            ctx.fillStyle = isClipping ? 'rgba(233,69,96,0.9)' : 'rgba(255,255,255,0.6)';
+            ctx.font = `bold ${Math.max(10, Math.min(13, height * 0.18))}px Inter, sans-serif`;
+            ctx.textAlign = 'right';
+            ctx.fillText(`${sign}${db.toFixed(1)}dB`, width - 4, height - 4);
+        }
     }
 
     drawRuler(canvas, duration, pixelsPerSecond, offset = 0) {

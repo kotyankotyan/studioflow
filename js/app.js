@@ -810,12 +810,23 @@ class StudioFlowDAW {
                     track.clips[0].buffer   = edited;
                     track.clips[0].duration = edited.duration;
 
-                    // 波形を再描画
+                    // 波形を再描画（かんたんモード・上級者モード両方）
                     const miniCanvas = document.querySelector(`.part-waveform canvas[data-track-id="${tid}"]`);
                     if (miniCanvas) this.waveform.drawClipWaveform(miniCanvas, edited, 0, edited.duration);
 
                     const editCanvas = grid.querySelector(`[data-edit-canvas="${tid}"]`);
                     if (editCanvas) this.waveform.drawClipWaveform(editCanvas, edited, 0, edited.duration);
+
+                    // 上級者モードのクリップ波形も更新
+                    const clipEl = document.querySelector(`[data-clip-id="${track.clips[0].id}"]`);
+                    if (clipEl) {
+                        const clipCanvas = clipEl.querySelector('.clip-waveform');
+                        if (clipCanvas) {
+                            requestAnimationFrame(() => {
+                                this.waveform.drawClipWaveform(clipCanvas, edited, 0, edited.duration, 1, track.clips[0]._gain || 1.0);
+                            });
+                        }
+                    }
 
                     // 「元に戻す」ボタンを追加
                     const applyRow = btn.closest('.edit-apply-row');
@@ -1516,26 +1527,116 @@ class StudioFlowDAW {
     }
 
     _setupClipDrag(clipDiv, track, clip) {
-        let isDragging = false, startX = 0, originalLeft = 0;
+        // クリップゲイン初期化
+        if (clip._gain === undefined) clip._gain = 1.0;
+
+        // ゲインオーバーレイ（縦ドラッグ中に表示）
+        const gainOverlay = document.createElement('div');
+        gainOverlay.className = 'clip-gain-overlay';
+        gainOverlay.style.display = 'none';
+        clipDiv.appendChild(gainOverlay);
+
+        // ゲイン値を gainNode に反映
+        const _applyGain = () => {
+            if (track.nodes?.gainNode && !track.muted) {
+                track.nodes.gainNode.gain.setValueAtTime(
+                    track.volume * clip._gain,
+                    this.audioEngine.ctx?.currentTime || 0
+                );
+            }
+        };
+
+        // 波形をゲイン反映して再描画
+        const _redrawWithGain = () => {
+            const canvas = clipDiv.querySelector('.clip-waveform');
+            if (canvas && clip.buffer) {
+                this.waveform.drawClipWaveform(canvas, clip.buffer, clip.offset || 0, clip.duration, 1, clip._gain);
+            }
+        };
+
+        // ── 横移動 / 縦ドラッグ（ゲイン調整） ──────────────────
+        let isDragging = false, startX = 0, startY = 0, originalLeft = 0;
+        let dragMode = null; // 'horizontal' | 'vertical' | null
+        let startGain = 1.0;
 
         clipDiv.addEventListener('mousedown', (e) => {
             if (e.target.classList.contains('clip-handle')) return;
             if (this.currentTool === 'cut') { this._cutClip(track, clip, e); return; }
             isDragging = true;
+            dragMode = null;
             startX = e.clientX;
+            startY = e.clientY;
+            startGain = clip._gain;
             originalLeft = parseFloat(clipDiv.style.left) || 0;
             e.preventDefault();
         });
 
-        document.addEventListener('mousemove', (e) => {
+        const _onMouseMove = (e) => {
             if (!isDragging) return;
             const dx = e.clientX - startX;
-            const newLeft = Math.max(0, originalLeft + dx);
-            clipDiv.style.left = newLeft + 'px';
-            clip.startTime = newLeft / this.pixelsPerSecond;
-        });
-        document.addEventListener('mouseup', () => { isDragging = false; });
+            const dy = e.clientY - startY;
 
+            // 5px動いたらドラッグモードを確定
+            if (!dragMode && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) {
+                dragMode = Math.abs(dy) > Math.abs(dx) ? 'vertical' : 'horizontal';
+            }
+
+            if (dragMode === 'horizontal') {
+                // 横移動 = タイムライン上での位置変更
+                const newLeft = Math.max(0, originalLeft + dx);
+                clipDiv.style.left = newLeft + 'px';
+                clip.startTime = newLeft / this.pixelsPerSecond;
+                gainOverlay.style.display = 'none';
+
+            } else if (dragMode === 'vertical') {
+                // 縦移動 = ゲイン調整（100px = ×2倍 / ÷2倍）
+                // 上にドラッグ → dy < 0 → ゲイン増加
+                const gainFactor = Math.pow(2, -dy / 100);
+                clip._gain = Math.max(0.05, Math.min(4.0, startGain * gainFactor));
+                _applyGain();
+
+                // dB表示
+                const db = 20 * Math.log10(clip._gain);
+                const sign = db >= 0 ? '+' : '';
+                gainOverlay.textContent = `${sign}${db.toFixed(1)} dB`;
+                gainOverlay.style.display = 'block';
+                gainOverlay.style.color = clip._gain > 1.5 ? '#e94560' : '#fff';
+
+                // 波形を即時更新（スロットリング）
+                if (!this._gainRedrawTimer) {
+                    this._gainRedrawTimer = requestAnimationFrame(() => {
+                        _redrawWithGain();
+                        this._gainRedrawTimer = null;
+                    });
+                }
+            }
+        };
+
+        const _onMouseUp = () => {
+            if (!isDragging) return;
+            isDragging = false;
+            gainOverlay.style.display = 'none';
+            if (dragMode === 'vertical') {
+                _redrawWithGain();
+                this._saveProject?.();
+            }
+            dragMode = null;
+        };
+
+        document.addEventListener('mousemove', _onMouseMove);
+        document.addEventListener('mouseup', _onMouseUp);
+
+        // ダブルクリックでゲインをリセット
+        clipDiv.addEventListener('dblclick', (e) => {
+            if (e.target.classList.contains('clip-handle')) return;
+            if (dragMode) return;
+            clip._gain = 1.0;
+            _applyGain();
+            _redrawWithGain();
+            this._toast('クリップゲインをリセットしました', 'info');
+        });
+
+        // ── リサイズハンドル ──────────────────────────────────
         let isResizing = false, resizeSide = '', resizeStartX = 0, originalWidth = 0;
         const startResize = (side) => (e) => {
             isResizing = true; resizeSide = side; resizeStartX = e.clientX;

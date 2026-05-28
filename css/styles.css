@@ -1075,6 +1075,25 @@ body {
 .clip:hover { border-color: rgba(74, 158, 255, 0.7); }
 .clip.selected { border-color: var(--accent); box-shadow: 0 0 8px rgba(233, 69, 96, 0.3); }
 
+/* クリップゲイン調整オーバーレイ */
+.clip-gain-overlay {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.75);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 4px;
+    pointer-events: none;
+    z-index: 10;
+    white-space: nowrap;
+}
+
+/* 縦ドラッグ中はカーソルを変更 */
+.clip:active { cursor: ns-resize; }
+
 .clip-label {
     position: absolute;
     top: 2px; left: 6px;
