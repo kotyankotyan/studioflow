@@ -1631,6 +1631,55 @@ class StudioFlowDAW {
         document.querySelectorAll('.track-canvas-area').forEach(el => el.style.minWidth = canvasMinWidth + 'px');
     }
 
+    _setZoom(newPps) {
+        const oldPps = this.pixelsPerSecond;
+        this.pixelsPerSecond = Math.max(10, Math.min(800, newPps));
+
+        // 現在の再生位置を画面中央に維持するよう scrollLeft を補正
+        const container = document.getElementById('tracks-container');
+        const trackHeaderWidth = 180;
+        const viewWidth = (container.offsetWidth - trackHeaderWidth) || 800;
+        const curTime = this.audioEngine.getCurrentTime();
+        const newContentPos = curTime * this.pixelsPerSecond;
+
+        // 全クリップの left / width を更新
+        this.tracks.forEach(track => {
+            track.clips.forEach(clip => {
+                const clipEl = document.querySelector(`[data-clip-id="${clip.id}"]`);
+                if (!clipEl) return;
+                clipEl.style.left  = (clip.startTime * this.pixelsPerSecond) + 'px';
+                clipEl.style.width = (clip.duration  * this.pixelsPerSecond) + 'px';
+            });
+        });
+
+        this._updateCanvasAreaWidths();
+        this._updateRuler();
+
+        // 波形を新しいズームで再描画
+        this.tracks.forEach(track => {
+            track.clips.forEach(clip => {
+                if (!clip.buffer) return;
+                const clipEl = document.querySelector(`[data-clip-id="${clip.id}"]`);
+                if (!clipEl) return;
+                const canvas = clipEl.querySelector('.clip-waveform');
+                if (canvas) {
+                    // 少し待ってレイアウト確定後に描画
+                    requestAnimationFrame(() => {
+                        this.waveform.drawClipWaveform(canvas, clip.buffer, clip.offset || 0, clip.duration);
+                    });
+                }
+            });
+        });
+
+        // 再生位置が画面内に収まるようスクロール調整
+        container.scrollLeft = Math.max(0, newContentPos - viewWidth / 2);
+        this.scrollOffset = container.scrollLeft;
+
+        // プレイヘッド位置も更新
+        const time = this.audioEngine.getCurrentTime();
+        this._updatePlayhead(time);
+    }
+
     _formatTime(seconds) {
         const mins = Math.floor(seconds / 60);
         const secs = Math.floor(seconds % 60);
@@ -2222,10 +2271,22 @@ class StudioFlowDAW {
             this.audioEngine.stop();
             _setPlayIcon();
             this._updatePlayhead(0);
+            // タイムラインを先頭にスクロール
+            const container = document.getElementById('tracks-container');
+            if (container) container.scrollLeft = 0;
         });
         document.getElementById('btn-rewind').addEventListener('click', () => {
             this.audioEngine.seek(0);
             this._updatePlayhead(0);
+            // タイムラインを先頭にスクロール
+            const container = document.getElementById('tracks-container');
+            if (container) container.scrollLeft = 0;
+        });
+        document.getElementById('btn-forward').addEventListener('click', () => {
+            const cur = this.audioEngine.getCurrentTime();
+            const next = cur + 10;
+            this.audioEngine.seek(next);
+            this._updatePlayhead(next);
         });
         document.getElementById('btn-loop').addEventListener('click', (e) => {
             this.audioEngine.loopEnabled = !this.audioEngine.loopEnabled;
@@ -2719,6 +2780,61 @@ class StudioFlowDAW {
             this._updateRuler();
             const time = this.audioEngine.getCurrentTime();
             document.getElementById('playhead').style.left = (180 + time * this.pixelsPerSecond - this.scrollOffset) + 'px';
+        });
+
+        // ── ズーム操作 ──────────────────────────────────────────
+        // スライダー値 0-100 を 25-800 px/s に対数マッピング
+        const _sliderToPps = v => Math.round(25 * Math.pow(800 / 25, v / 100));
+        const _ppsToSlider = p => Math.round(Math.log(p / 25) / Math.log(800 / 25) * 100);
+
+        const zoomSlider = document.getElementById('zoom-slider');
+        zoomSlider.addEventListener('input', () => {
+            this._setZoom(_sliderToPps(parseInt(zoomSlider.value)));
+        });
+        document.getElementById('btn-zoom-in').addEventListener('click', () => {
+            const v = Math.min(100, parseInt(zoomSlider.value) + 10);
+            zoomSlider.value = v;
+            this._setZoom(_sliderToPps(v));
+        });
+        document.getElementById('btn-zoom-out').addEventListener('click', () => {
+            const v = Math.max(0, parseInt(zoomSlider.value) - 10);
+            zoomSlider.value = v;
+            this._setZoom(_sliderToPps(v));
+        });
+
+        // Ctrl + マウスホイールでズーム
+        document.getElementById('tracks-container').addEventListener('wheel', (e) => {
+            if (!e.ctrlKey) return;
+            e.preventDefault();
+            const slider = document.getElementById('zoom-slider');
+            const delta = e.deltaY > 0 ? -5 : 5;
+            const v = Math.max(0, Math.min(100, parseInt(slider.value) + delta));
+            slider.value = v;
+            this._setZoom(_sliderToPps(v));
+        }, { passive: false });
+
+        // キーボードショートカット（上級者モード表示中のみ）
+        document.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            if (this.easyMode) return;
+            const slider = document.getElementById('zoom-slider');
+            if (e.key === '=' || e.key === '+') {
+                const v = Math.min(100, parseInt(slider.value) + 10);
+                slider.value = v;
+                this._setZoom(_sliderToPps(v));
+            } else if (e.key === '-' || e.key === '_') {
+                const v = Math.max(0, parseInt(slider.value) - 10);
+                slider.value = v;
+                this._setZoom(_sliderToPps(v));
+            } else if (e.key === 'ArrowRight' && !e.shiftKey && !e.ctrlKey) {
+                const cur = this.audioEngine.getCurrentTime();
+                this.audioEngine.seek(cur + 10);
+                this._updatePlayhead(cur + 10);
+            } else if (e.key === 'ArrowLeft' && !e.shiftKey && !e.ctrlKey) {
+                const cur = this.audioEngine.getCurrentTime();
+                this.audioEngine.seek(Math.max(0, cur - 10));
+                this._updatePlayhead(Math.max(0, cur - 10));
+            }
         });
     }
 
