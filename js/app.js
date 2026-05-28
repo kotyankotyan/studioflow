@@ -182,18 +182,30 @@ class StudioFlowDAW {
         this._updateMixerUI();
         this._updateRuler();
         this.automation.draw();
-        // 非表示中に追加されたクリップの波形を再描画（display:none解除後にレイアウト確定するまで待つ）
-        setTimeout(() => {
+        // 非表示中に追加されたクリップの波形を再描画
+        // display:none 解除後、ブラウザがレイアウトを確定するまでリトライ
+        const _redrawAllClips = (attempts) => {
+            let allDrawn = true;
             this.tracks.forEach(track => {
                 track.clips.forEach(clip => {
                     if (!clip.buffer) return;
                     const clipEl = document.querySelector(`[data-clip-id="${clip.id}"]`);
                     if (!clipEl) return;
                     const canvas = clipEl.querySelector('.clip-waveform');
-                    if (canvas) this.waveform.drawClipWaveform(canvas, clip.buffer, clip.offset || 0, clip.duration);
+                    if (!canvas) return;
+                    const r = canvas.getBoundingClientRect();
+                    if (r.width > 0) {
+                        this.waveform.drawClipWaveform(canvas, clip.buffer, clip.offset || 0, clip.duration);
+                    } else {
+                        allDrawn = false;
+                    }
                 });
             });
-        }, 50);
+            if (!allDrawn && attempts < 15) {
+                setTimeout(() => _redrawAllClips(attempts + 1), 50);
+            }
+        };
+        setTimeout(() => _redrawAllClips(0), 0);
     }
 
     _switchToEasy() {
@@ -917,8 +929,8 @@ class StudioFlowDAW {
                 if (canvas) this.waveform.drawClipWaveform(canvas, processed, 0, processed.duration);
 
                 if (statusEl) {
-                    statusEl.innerHTML = `✅ ${reductionPct}% 除去 適用済み`;
-                    setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 3000);
+                    statusEl.innerHTML = `✅ ボーカル帯域(200〜5.5kHz) ${reductionPct}% 除去済み（低音・高音は保持）`;
+                    setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 4000);
                 }
             } catch (err) {
                 if (statusEl) statusEl.textContent = '⚠️ エラー';
@@ -959,11 +971,18 @@ class StudioFlowDAW {
         this.tracks.forEach(track => {
             if (!track.clips.length) return;
 
+            // ボーカル除去のデバウンスタイマーをキャンセル（リセット後に上書きされるのを防ぐ）
+            if (track._msDebounceTimer) {
+                clearTimeout(track._msDebounceTimer);
+                track._msDebounceTimer = null;
+            }
+
             // オリジナルバッファを復元（バッファ編集・ボーカル除去の取り消し）
             const origBuf = track._msOriginalBuffer || track._originalBuffer;
             if (origBuf) {
                 track.clips[0].buffer = origBuf;
                 track.clips[0].duration = origBuf.duration;
+                track.clips[0].offset = 0;
                 track._saved = false;
             }
 
@@ -2900,7 +2919,8 @@ class StudioFlowDAW {
 
             await this.storage.saveProject({
                 tracks: trackMeta,
-                bpm: parseInt(document.getElementById('bpm-input').value) || 120,
+                bpm: this.audioEngine.bpm || 120,
+                originalBpm: this.audioEngine.originalBpm || 120,
                 version: '1.0'
             });
 
@@ -2938,7 +2958,7 @@ class StudioFlowDAW {
             for (const trackMeta of project.tracks) {
                 const track = this.addTrack(trackMeta.name);
                 track.color = trackMeta.color || track.color;
-                track.volume = trackMeta.volume ?? 0.8;
+                track.volume = trackMeta.volume ?? 0.85;
                 track.pan = trackMeta.pan ?? 0;
                 track.muted = trackMeta.muted ?? false;
                 track.nodes.gainNode.gain.value = track.muted ? 0 : track.volume;
@@ -2974,7 +2994,13 @@ class StudioFlowDAW {
                 }
             }
 
-            if (project.bpm) document.getElementById('bpm-input').value = project.bpm;
+            // BPMを復元（originalBpm と bpmRatio も正しく設定）
+            if (project.bpm) {
+                this.audioEngine.bpm         = project.bpm;
+                this.audioEngine.originalBpm = project.originalBpm || project.bpm;
+                this.audioEngine.bpmRatio    = project.bpm / (project.originalBpm || project.bpm);
+                document.getElementById('bpm-input').value = project.bpm;
+            }
 
             this._updateRuler();
             this._updateMixerUI();

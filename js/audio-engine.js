@@ -159,7 +159,8 @@ class AudioEngine {
 
     getCurrentTime() {
         if (!this.isPlaying) return this.pauseTime;
-        return this.ctx.currentTime - this.startTime + this.pauseTime;
+        // bpmRatioが1以外のとき、実経過時間 × 速度比 = 音楽時間
+        return (this.ctx.currentTime - this.startTime) * (this.bpmRatio || 1.0) + this.pauseTime;
     }
 
     play(tracks) {
@@ -180,14 +181,17 @@ class AudioEngine {
                 source.buffer = clip.buffer;
 
                 const clipStart = clip.startTime || 0;
+                // clipEndは元の音楽時間（buffer duration = 1xの長さ）で判定
                 const clipEnd = clipStart + clip.buffer.duration;
 
                 if (offset >= clipEnd) return;
 
                 source.connect(track.nodes.gainNode);
 
+                // sourceOffsetは バッファ内の位置（音楽時間）= offset - clipStart
                 const sourceOffset = Math.max(0, offset - clipStart);
-                const when = Math.max(0, clipStart - offset);
+                // whenはwallclock実時間: 音楽時間の差をbpmRatioで割る（速いほど早く到達）
+                const when = Math.max(0, (clipStart - offset) / (this.bpmRatio || 1.0));
 
                 // BPM変更に応じて再生速度を変える（varispeed: テンポ＆ピッチ同時変化）
                 source.playbackRate.value = this.bpmRatio || 1.0;
