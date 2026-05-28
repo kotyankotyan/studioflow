@@ -351,8 +351,8 @@ body {
 /* ============================================ */
 .easy-parts-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    gap: 14px;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 18px;
     width: 100%;
     align-content: start;
 }
@@ -361,7 +361,7 @@ body {
     background: var(--bg-secondary);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
-    padding: 16px;
+    padding: 20px;
     transition: 0.3s ease;
     position: relative;
     overflow: hidden;
@@ -384,12 +384,12 @@ body {
     font-size: 28px;
 }
 .part-card-title .part-name {
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 700;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 140px;
+    max-width: 160px;
 }
 
 .part-card-actions {
@@ -398,15 +398,15 @@ body {
 }
 
 .part-btn {
-    width: 36px;
-    height: 36px;
+    width: 40px;
+    height: 40px;
     border: 1px solid var(--border);
     background: var(--bg-surface);
     color: var(--text-secondary);
     border-radius: 50%;
     cursor: pointer;
     transition: var(--transition);
-    font-size: 14px;
+    font-size: 16px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -417,7 +417,7 @@ body {
 
 /* Waveform mini preview */
 .part-waveform {
-    height: 48px;
+    height: 64px;
     background: var(--waveform-bg);
     border-radius: var(--radius);
     margin-bottom: 16px;
@@ -442,25 +442,25 @@ body {
 }
 
 .part-slider-label {
-    font-size: 12px;
+    font-size: 13px;
     color: var(--text-secondary);
-    min-width: 70px;
+    min-width: 76px;
     display: flex;
     align-items: center;
     gap: 6px;
 }
 .part-slider-label i {
-    font-size: 14px;
+    font-size: 15px;
     width: 18px;
     text-align: center;
 }
 
 .part-slider {
     flex: 1;
-    height: 10px;
+    height: 12px;
     -webkit-appearance: none;
     appearance: none;
-    border-radius: 5px;
+    border-radius: 6px;
     outline: none;
     transition: 0.2s;
     cursor: pointer;
@@ -468,12 +468,12 @@ body {
 }
 .part-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
-    width: 24px;
-    height: 24px;
+    width: 28px;
+    height: 28px;
     border-radius: 50%;
     cursor: pointer;
     box-shadow: 0 2px 8px rgba(0,0,0,0.4);
-    border: 2px solid rgba(255,255,255,0.15);
+    border: 2px solid rgba(255,255,255,0.2);
 }
 /* 音量スライダーのコンテナ（±ボタン付き） */
 .vol-stepper-wrap {
@@ -599,10 +599,10 @@ body {
 .abar-btn {
     display: inline-flex;
     align-items: center;
-    gap: 7px;
-    padding: 9px 16px;
+    gap: 8px;
+    padding: 11px 18px;
     border-radius: var(--radius);
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     font-family: inherit;
     cursor: pointer;

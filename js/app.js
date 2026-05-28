@@ -206,6 +206,41 @@ class StudioFlowDAW {
             }
         };
         setTimeout(() => _redrawAllClips(0), 0);
+
+        // かんたんモードで変更した値を上級者モードのスライダー・ボタンに同期
+        this._syncAdvancedTrackHeaders();
+    }
+
+    /** かんたんモードの設定値を上級者モードのトラックヘッダーUIに反映する */
+    _syncAdvancedTrackHeaders() {
+        this.tracks.forEach(track => {
+            const trackDiv = document.querySelector(`[data-track-id="${track.id}"].track`);
+            if (!trackDiv) return;
+
+            // 音量スライダー
+            const volSlider = trackDiv.querySelector('.track-vol-slider');
+            if (volSlider) {
+                volSlider.value = track.volume;
+                const label = trackDiv.querySelector('.track-volume-label');
+                if (label) label.textContent = Math.round(track.volume * 100) + '%';
+            }
+
+            // パンスライダー
+            const panSlider = trackDiv.querySelector('.track-pan-slider');
+            if (panSlider) panSlider.value = track.pan;
+
+            // ミュートボタン
+            const muteBtn = trackDiv.querySelector('.btn-mute');
+            if (muteBtn) muteBtn.classList.toggle('active-mute', track.muted);
+
+            // ソロボタン
+            const soloBtn = trackDiv.querySelector('.btn-solo');
+            if (soloBtn) soloBtn.classList.toggle('active-solo', track.solo);
+
+            // トラック名
+            const nameInput = trackDiv.querySelector('.track-name');
+            if (nameInput) nameInput.value = track.name;
+        });
     }
 
     _switchToEasy() {
@@ -964,7 +999,6 @@ class StudioFlowDAW {
 
     /** 全トラックの設定を初期状態（デフォルト）にリセットする */
     _resetAllToDefaults() {
-        if (!confirm('全トラックの音量・EQ・エフェクト・ボーカル除去を初期状態に戻しますか？\n（音源ファイル自体は削除されません）')) return;
 
         const now = this.audioEngine.ctx.currentTime;
 
@@ -1032,14 +1066,10 @@ class StudioFlowDAW {
         }
 
         this._renderEasyCards();
-        // アドバンスモードのクリップ波形を再描画
-        this.tracks.forEach(track => {
-            track.clips.forEach(clip => {
-                if (clip.buffer) this._renderClip(track, clip);
-            });
-        });
+        // 上級者モードのスライダーも同期
+        this._syncAdvancedTrackHeaders();
         this._updateMixerUI();
-        this._toast('✅ 全設定を初期状態に戻しました', 'success');
+        this._toast('✅ 初期状態に戻しました（音量・EQ・リバーブ・ボーカル除去リセット済み）', 'success');
     }
 
     async _clearProject() {
@@ -2666,17 +2696,22 @@ class StudioFlowDAW {
             modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.add('hidden'); });
         });
 
-        document.getElementById('bpm-input').addEventListener('change', (e) => {
+        document.getElementById('bpm-input').addEventListener('input', (e) => {
             const newBpm = parseInt(e.target.value) || 120;
+            if (newBpm < 20 || newBpm > 300) return;
             this.audioEngine.bpm = newBpm;
             this.audioEngine.bpmRatio = newBpm / (this.audioEngine.originalBpm || 120);
-            // 再生中なら即座に速度を反映
+            // 再生中なら即座にすべてのソースに速度を反映
             if (this.audioEngine.isPlaying) {
                 this.audioEngine.sources.forEach(src => {
-                    try { src.playbackRate.value = this.audioEngine.bpmRatio; } catch(e) {}
+                    try { src.playbackRate.value = this.audioEngine.bpmRatio; } catch(_) {}
                 });
             }
-            this._toast(`BPM: ${this.audioEngine.originalBpm || 120} → ${newBpm} (速度 ${(this.audioEngine.bpmRatio * 100).toFixed(0)}%)`, 'info');
+            // BPMラベルに変化率を表示
+            const ratio = this.audioEngine.bpmRatio;
+            const pct = ((ratio - 1) * 100).toFixed(0);
+            const sign = pct >= 0 ? '+' : '';
+            e.target.title = `元BPM: ${this.audioEngine.originalBpm || 120} | 速度: ${sign}${pct}% (ピッチも変わります)`;
         });
 
         document.getElementById('timeline-ruler').addEventListener('click', (e) => {
