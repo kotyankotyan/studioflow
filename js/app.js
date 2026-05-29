@@ -1685,12 +1685,64 @@ class StudioFlowDAW {
         document.addEventListener('mouseup', () => { isResizing = false; });
     }
 
+    // マスタリングパネルのEQスライダー表示をエンジンの現在値に同期する
+    _syncMasterEQSliders() {
+        document.querySelectorAll('.master-eq').forEach(slider => {
+            const band = slider.dataset.band;
+            const filter = this.audioEngine.masterEQ?.[band];
+            if (!filter) return;
+            const val = filter.gain.value;
+            slider.value = val;
+            const label = slider.closest('.eq-band')?.querySelector('.eq-value');
+            if (label) label.textContent = val + ' dB';
+        });
+    }
+
+    // ── 自動ゼロクロス点検出 ──────────────────────────────
+    // バッファ内 targetSec 周辺で振幅が0（符号反転）に最も近いタイミングを探し、
+    // その時刻（秒）を返す。プチプチノイズ（クリックノイズ）を防ぐ。
+    // bufferOffsetSec : clip.offset を加味したバッファ内の絶対秒数で探索する
+    _findZeroCrossing(buffer, bufferTargetSec, searchRangeSec = 0.03) {
+        if (!buffer) return bufferTargetSec;
+        const data = buffer.getChannelData(0);
+        const sr = buffer.sampleRate;
+        const targetSample = Math.round(bufferTargetSec * sr);
+        const range = Math.round(searchRangeSec * sr);
+        const lo = Math.max(1, targetSample - range);
+        const hi = Math.min(data.length - 1, targetSample + range);
+
+        let bestSample = -1;
+        let bestDist = Infinity;
+        // 符号反転（ゼロクロス）を探し、targetに最も近いものを採用
+        for (let i = lo; i <= hi; i++) {
+            const prev = data[i - 1];
+            const cur = data[i];
+            if ((prev <= 0 && cur > 0) || (prev >= 0 && cur < 0) || cur === 0) {
+                const dist = Math.abs(i - targetSample);
+                if (dist < bestDist) {
+                    bestDist = dist;
+                    bestSample = i;
+                }
+            }
+        }
+        // 見つからなければ元の位置を返す
+        if (bestSample < 0) return bufferTargetSec;
+        return bestSample / sr;
+    }
+
     _cutClip(track, clip, event) {
         const trackDiv = document.querySelector(`[data-track-id="${track.id}"].track`);
         const canvasArea = trackDiv.querySelector('.track-canvas-area');
         const rect = canvasArea.getBoundingClientRect();
-        const cutTime = (event.clientX - rect.left) / this.pixelsPerSecond;
+        let cutTime = (event.clientX - rect.left) / this.pixelsPerSecond;
         if (cutTime <= clip.startTime || cutTime >= clip.startTime + clip.duration) return;
+
+        // ▼ 自動ゼロクロス点検出：クリック位置をバッファ内座標に変換し補正
+        const clipOffset = clip.offset || 0;
+        const bufferTargetSec = clipOffset + (cutTime - clip.startTime);
+        const zcBufferSec = this._findZeroCrossing(clip.buffer, bufferTargetSec);
+        // 補正分をタイムライン座標に反映
+        cutTime = clip.startTime + (zcBufferSec - clipOffset);
 
         const relCut = cutTime - clip.startTime;
         const clip1 = { id: 'clip_' + Date.now() + '_a', name: clip.name + ' (前)', buffer: clip.buffer, startTime: clip.startTime, duration: relCut, offset: clip.offset || 0 };
@@ -1703,7 +1755,7 @@ class StudioFlowDAW {
         if (oldClipDiv) oldClipDiv.remove();
         this._renderClip(track, clip1);
         this._renderClip(track, clip2);
-        this._toast('クリップを分割しました', 'info');
+        this._toast('クリップを分割しました（ゼロクロス点で自動補正・ノイズ防止）', 'success');
     }
 
     _updateTrackHeader(track) {
@@ -2588,6 +2640,20 @@ class StudioFlowDAW {
                 this._hideLoading();
                 this._toast(`アウトロフェード適用 (${dur}秒)`, 'success');
             } catch (e) { this._hideLoading(); this._toast('エラー: ' + e.message, 'error'); }
+        });
+
+        // 2.5 Suno AIクリーンアップEQ（マスターEQプリセット・トグル）
+        document.getElementById('btn-suno-eq')?.addEventListener('click', () => {
+            const enabled = this.audioEngine.setSunoEQPreset(!this.audioEngine.sunoEnabled);
+            const btn = document.getElementById('btn-suno-eq');
+            const status = document.getElementById('suno-eq-status');
+            if (btn) btn.classList.toggle('active', enabled);
+            if (status) status.textContent = enabled ? '現在: オン ✅' : '現在: オフ';
+            // マスタリングパネルのEQスライダー表示も同期
+            this._syncMasterEQSliders();
+            this._toast(enabled
+                ? 'Suno AIクリーンアップEQ：オン（マスターEQに適用）'
+                : 'Suno AIクリーンアップEQ：オフ（元の設定に復元）', enabled ? 'success' : 'info');
         });
 
         // 3. オートチューン / ケロケロ

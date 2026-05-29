@@ -1933,6 +1933,11 @@ body {
 .pro-apply-btn:hover { opacity: 0.85; }
 .pro-apply-btn:active { transform: scale(0.98); }
 
+/* Suno EQ トグルボタン */
+.suno-eq-btn { background: var(--bg-surface); border: 1px solid var(--border-light); }
+.suno-eq-btn.active { background: var(--accent-green); border-color: var(--accent-green); }
+.suno-eq-status { font-weight: 600; color: var(--text-secondary); }
+
 /* ============================================ */
 /* MODALS                                        */
 /* ============================================ */

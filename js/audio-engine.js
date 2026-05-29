@@ -257,6 +257,40 @@ class AudioEngine {
         }
     }
 
+    // ── Suno AI ワンクリックEQ ──────────────────────────────
+    // AI生成楽曲特有の「高音のシャリシャリ感」「低音のもっさり感」を補正する。
+    // マスターEQ（lowshelf/peaking/highshelf）にプリセット値を適用する。
+    // enabled=false で元の値を復元（ユーザー設定を破壊しない）。
+    setSunoEQPreset(enabled) {
+        if (!this.masterEQ || Object.keys(this.masterEQ).length === 0) return;
+
+        if (enabled) {
+            // 現在のマスターEQ値をバックアップ（多重適用を防ぐ）
+            if (!this._presunoEQ) {
+                this._presunoEQ = {};
+                Object.keys(this.masterEQ).forEach(band => {
+                    this._presunoEQ[band] = this.masterEQ[band].gain.value;
+                });
+            }
+            // Suno最適化プリセット
+            this.setMasterEQ('low',      1.5);  // 薄くなりがちな低音を補強
+            this.setMasterEQ('lowmid',  -3.0);  // AIのこもり感（200-400Hz）を除去
+            this.setMasterEQ('mid',      0.5);  // ボーカル帯域の存在感を少し
+            this.setMasterEQ('highmid', -2.0);  // シャリシャリの中心帯域をカット
+            this.setMasterEQ('high',    -3.5);  // AIの高音シマー感を抑制
+        } else {
+            // バックアップから復元
+            if (this._presunoEQ) {
+                Object.keys(this._presunoEQ).forEach(band => {
+                    this.setMasterEQ(band, this._presunoEQ[band]);
+                });
+                this._presunoEQ = null;
+            }
+        }
+        this.sunoEnabled = enabled;
+        return this.sunoEnabled;
+    }
+
     setMasterCompressor(param, value) {
         if (this.masterCompressor) {
             switch (param) {
