@@ -509,6 +509,27 @@
                                 <button class="pro-apply-btn" id="btn-lufs-normalize">測定して適用</button>
                             </div>
 
+                            <div class="pro-card">
+                                <div class="pro-card-header">
+                                    <span class="pro-card-icon">📈</span>
+                                    <div>
+                                        <div class="pro-card-title">True Peak リミッター（dBTP）</div>
+                                        <div class="pro-card-desc">サンプル間に隠れた真のピークを検出。配信時のクリップ歪みを防ぐ</div>
+                                    </div>
+                                </div>
+                                <div class="pro-card-controls">
+                                    <label>上限:</label>
+                                    <select id="tp-ceiling">
+                                        <option value="-1">-1.0 dBTP（配信標準）</option>
+                                        <option value="-0.3">-0.3 dBTP（最大化）</option>
+                                        <option value="-2">-2.0 dBTP（安全）</option>
+                                    </select>
+                                    <span class="lufs-status" id="tp-status"></span>
+                                </div>
+                                <button class="pro-apply-btn" id="btn-tp-measure">測定のみ</button>
+                                <button class="pro-apply-btn" id="btn-tp-limit">測定して制限</button>
+                            </div>
+
                         </div>
 
                         <!-- Section: テイク比較 (A/B) -->

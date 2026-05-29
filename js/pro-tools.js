@@ -618,6 +618,53 @@ class ProTools {
         return { buffer: out, gainDb, measured: current, target: targetLUFS };
     }
 
+    // ============================================================
+    // True Peak (dBTP) 測定 - インターサンプルピーク検出
+    // 4倍オーバーサンプリングでサンプル間に隠れた真のピークを検出する。
+    // 配信プラットフォーム（Spotify/YouTube等）でのクリッピングを防ぐ。
+    // ============================================================
+    async measureTruePeak(buffer) {
+        const sr = buffer.sampleRate;
+        const channels = buffer.numberOfChannels;
+        const oversample = 4;
+        // OfflineAudioContextの高品質リサンプリングで4倍アップサンプル
+        const osCtx = new OfflineAudioContext(channels, buffer.length * oversample, sr * oversample);
+        const src = osCtx.createBufferSource();
+        src.buffer = buffer;
+        src.connect(osCtx.destination);
+        src.start(0);
+        const up = await osCtx.startRendering();
+
+        let peak = 0;
+        for (let ch = 0; ch < channels; ch++) {
+            const d = up.getChannelData(ch);
+            for (let i = 0; i < d.length; i++) {
+                const a = Math.abs(d[i]);
+                if (a > peak) peak = a;
+            }
+        }
+        const dbtp = peak > 0 ? 20 * Math.log10(peak) : -Infinity;
+        return { dbtp, linear: peak };
+    }
+
+    // True Peakを指定上限（dBTP, 既定-1.0）以下に抑えるゲインを適用
+    async limitTruePeak(buffer, ceilingDbtp = -1.0) {
+        const { linear } = await this.measureTruePeak(buffer);
+        const ceilingLin = Math.pow(10, ceilingDbtp / 20);
+        if (linear <= ceilingLin || linear === 0) {
+            return { buffer, gainDb: 0, peakDbtp: linear > 0 ? 20 * Math.log10(linear) : -Infinity, changed: false };
+        }
+        const gain = ceilingLin / linear;
+        const channels = buffer.numberOfChannels;
+        const out = this.engine.ctx.createBuffer(channels, buffer.length, buffer.sampleRate);
+        for (let ch = 0; ch < channels; ch++) {
+            const sd = buffer.getChannelData(ch);
+            const dd = out.getChannelData(ch);
+            for (let i = 0; i < sd.length; i++) dd[i] = sd[i] * gain;
+        }
+        return { buffer: out, gainDb: 20 * Math.log10(gain), peakDbtp: 20 * Math.log10(linear), changed: true };
+    }
+
     // 2つのバッファのラウドネスを揃える係数（A/Bテイク比較用）
     async loudnessMatch(bufferA, bufferB) {
         const la = await this.measureLUFS(bufferA);

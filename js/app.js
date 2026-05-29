@@ -2954,6 +2954,42 @@ class StudioFlowDAW {
             } catch (e) { this._hideLoading(); this._toast('エラー: ' + e.message, 'error'); }
         });
 
+        // 2.9 True Peak リミッター（dBTP）
+        document.getElementById('btn-tp-measure')?.addEventListener('click', async () => {
+            const tc = getClip(); if (!tc) return;
+            this._showLoading('True Peakを測定中...');
+            try {
+                const { dbtp } = await this.proTools.measureTruePeak(tc.clip.buffer);
+                const status = document.getElementById('tp-status');
+                const txt = dbtp === -Infinity ? '無音' : `${dbtp.toFixed(2)} dBTP`;
+                if (status) {
+                    status.textContent = txt;
+                    status.style.color = dbtp > 0 ? '#e94560' : dbtp > -1 ? '#f0a020' : '#4ade80';
+                }
+                this._hideLoading();
+                this._toast(`True Peak: ${txt}${dbtp > 0 ? '（0dBTP超え：歪みの危険）' : ''}`, dbtp > 0 ? 'warning' : 'success');
+            } catch (e) { this._hideLoading(); this._toast('エラー: ' + e.message, 'error'); }
+        });
+        document.getElementById('btn-tp-limit')?.addEventListener('click', async () => {
+            const tc = getClip(); if (!tc) return;
+            const ceiling = parseFloat(document.getElementById('tp-ceiling').value);
+            this._showLoading('True Peakを制限中...');
+            try {
+                const res = await this.proTools.limitTruePeak(tc.clip.buffer, ceiling);
+                const status = document.getElementById('tp-status');
+                if (!res.changed) {
+                    if (status) { status.textContent = `${res.peakDbtp.toFixed(2)} dBTP（変更なし）`; status.style.color = '#4ade80'; }
+                    this._hideLoading();
+                    this._toast(`すでに上限以下です（${res.peakDbtp.toFixed(2)} dBTP ≤ ${ceiling} dBTP）`, 'success');
+                    return;
+                }
+                this._applyBufferToClip(tc.track, tc.clip, res.buffer);
+                if (status) { status.textContent = `${res.peakDbtp.toFixed(2)} → ${ceiling} dBTP`; status.style.color = '#4ade80'; }
+                this._hideLoading();
+                this._toast(`True Peak制限完了（${res.peakDbtp.toFixed(2)} dBTP → ${ceiling} dBTP / ${res.gainDb.toFixed(1)}dB）`, 'success');
+            } catch (e) { this._hideLoading(); this._toast('エラー: ' + e.message, 'error'); }
+        });
+
         // 3. オートチューン / ケロケロ
         document.getElementById('btn-autotune')?.addEventListener('click', async () => {
             const tc = getClip(); if (!tc) return;
