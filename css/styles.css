@@ -790,7 +790,7 @@ body {
 
 .preset-emoji { font-size: 28px; }
 .preset-name { font-size: 14px; font-weight: 700; margin-top: 2px; }
-.preset-desc { font-size: 11px; color: var(--text-muted); }
+.preset-desc { font-size: 12px; color: var(--text-secondary); }
 
 /* ============================================ */
 /* ADVANCED MODE                                 */
@@ -851,41 +851,46 @@ body {
 }
 
 .tool-section h3 {
-    font-size: 9px;
+    font-size: 10px;
     text-transform: uppercase;
-    color: var(--text-muted);
+    color: var(--text-secondary);
     text-align: center;
     margin-bottom: 4px;
-    letter-spacing: 1px;
+    letter-spacing: 1.5px;
+    font-weight: 600;
+    padding: 2px 0;
+    border-bottom: 1px solid var(--border);
+    width: 100%;
 }
 .tool-section {
     display: flex;
     flex-direction: column;
     gap: 4px;
     align-items: center;
+    width: 100%;
 }
 
 .tool-btn, .tool-section > button {
-    width: 90px;
-    height: 44px;
+    width: 94px;
+    height: 46px;
     border: 1px solid var(--border);
     background: var(--bg-surface);
-    color: var(--text-secondary);
+    color: var(--text-primary);
     border-radius: var(--radius-sm);
     cursor: pointer;
     transition: var(--transition);
     display: flex;
     align-items: center;
-    justify-content: center;
-    gap: 5px;
+    justify-content: flex-start;
+    gap: 6px;
     flex-direction: row;
-    font-size: 11px;
+    font-size: 12px;
     font-family: inherit;
     padding: 0 8px;
 }
-.tool-btn i, .tool-section > button i { font-size: 14px; flex-shrink: 0; }
-.tool-btn span, .tool-section > button span { font-size: 11px; white-space: nowrap; }
-.tool-btn:hover, .tool-section > button:hover { background: var(--bg-surface-hover); color: var(--text-primary); }
+.tool-btn i, .tool-section > button i { font-size: 15px; flex-shrink: 0; width: 18px; text-align: center; }
+.tool-btn span, .tool-section > button span { font-size: 12px; white-space: nowrap; font-weight: 500; }
+.tool-btn:hover, .tool-section > button:hover { background: var(--bg-surface-hover); color: white; border-color: var(--border-light); }
 .tool-btn.active { background: var(--accent-secondary); border-color: var(--accent-secondary); color: white; }
 
 /* Tool color coding */
@@ -976,10 +981,11 @@ body {
     height: 24px;
     border: 1px solid var(--border);
     background: var(--bg-surface);
-    color: var(--text-muted);
+    color: var(--text-secondary);
     border-radius: 3px;
     cursor: pointer;
-    font-size: 10px;
+    font-size: 11px;
+    font-weight: 600;
     transition: var(--transition);
     display: flex;
     align-items: center;
@@ -1014,8 +1020,8 @@ body {
 }
 
 .track-volume-label {
-    font-size: 10px;
-    color: var(--text-muted);
+    font-size: 11px;
+    color: var(--text-secondary);
     min-width: 35px;
     text-align: right;
 }
@@ -1024,8 +1030,8 @@ body {
     display: flex;
     align-items: center;
     gap: 4px;
-    font-size: 10px;
-    color: var(--text-muted);
+    font-size: 11px;
+    color: var(--text-secondary);
 }
 .track-pan input[type="range"] {
     flex: 1;
@@ -1336,16 +1342,16 @@ body {
     padding: 12px;
 }
 .panel h3 {
-    font-size: 12px;
+    font-size: 11px;
     text-transform: uppercase;
-    color: var(--text-muted);
+    color: var(--text-secondary);
     letter-spacing: 1px;
     margin-bottom: 8px;
 }
 
 .hint {
-    font-size: 11px;
-    color: var(--text-muted);
+    font-size: 12px;
+    color: var(--text-secondary);
     font-style: italic;
 }
 
@@ -1433,8 +1439,8 @@ body {
     padding: 8px 16px;
     background: none;
     border: none;
-    color: var(--text-muted);
-    font-size: 12px;
+    color: var(--text-secondary);
+    font-size: 13px;
     cursor: pointer;
     border-bottom: 2px solid transparent;
     transition: var(--transition);
@@ -1486,8 +1492,8 @@ body {
     justify-content: flex-start;
 }
 .mixer-channel h4 {
-    font-size: 10px;
-    color: var(--text-secondary);
+    font-size: 11px;
+    color: var(--text-primary);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1521,7 +1527,7 @@ body {
     cursor: pointer;
 }
 
-.volume-label { font-size: 10px; color: var(--text-muted); flex-shrink: 0; }
+.volume-label { font-size: 11px; color: var(--text-secondary); flex-shrink: 0; }
 
 .mixer-buttons { display: flex; gap: 2px; flex-shrink: 0; }
 .mixer-buttons button {
@@ -1573,7 +1579,7 @@ body {
 
 .eq-controls, .compressor-controls, .limiter-controls { display: flex; flex-direction: column; gap: 6px; }
 .eq-band, .ctrl-group { display: flex; align-items: center; gap: 8px; }
-.eq-band label, .ctrl-group label { font-size: 11px; color: var(--text-secondary); min-width: 80px; }
+.eq-band label, .ctrl-group label { font-size: 12px; color: var(--text-primary); min-width: 80px; }
 .eq-band input[type="range"], .ctrl-group input[type="range"] {
     flex: 1; height: 4px; -webkit-appearance: none; appearance: none;
     background: var(--border); border-radius: 2px; outline: none;
@@ -1583,7 +1589,7 @@ body {
     -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%;
     background: var(--accent-secondary); cursor: pointer;
 }
-.eq-value, .ctrl-value { font-size: 10px; color: var(--text-muted); min-width: 45px; text-align: right; }
+.eq-value, .ctrl-value { font-size: 11px; color: var(--text-secondary); min-width: 45px; text-align: right; }
 
 .mastering-presets {
     background: var(--bg-surface); border-radius: var(--radius); padding: 12px; min-width: 180px;
