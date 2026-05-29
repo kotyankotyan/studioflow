@@ -2517,6 +2517,7 @@ class StudioFlowDAW {
             }
             // スペクトラムは常時描画（停止中は空＝グリッドのみ）
             this._drawSpectrum();
+            this._drawPhaseCorrelation();
             this._meterRAF = requestAnimationFrame(update);
         };
         this._meterRAF = requestAnimationFrame(update);
@@ -2591,6 +2592,155 @@ class StudioFlowDAW {
             ctx.fillRect(x, py, barW - 1, 2);
         }
     }
+
+    // モノ互換／位相相関メーター（L/Rの相関係数: +1=モノ安全, -1=逆相危険）
+    _drawPhaseCorrelation() {
+        const canvas = document.getElementById('phase-canvas');
+        const aL = this.audioEngine.masterAnalyserL;
+        const aR = this.audioEngine.masterAnalyserR;
+        if (!canvas || !aL || !aR) return;
+        if (canvas.offsetParent === null) return;
+
+        const N = aL.fftSize;
+        const L = new Float32Array(N);
+        const R = new Float32Array(N);
+        aL.getFloatTimeDomainData(L);
+        aR.getFloatTimeDomainData(R);
+
+        // ピアソン相関係数
+        let sumL = 0, sumR = 0;
+        for (let i = 0; i < N; i++) { sumL += L[i]; sumR += R[i]; }
+        const mL = sumL / N, mR = sumR / N;
+        let num = 0, dL = 0, dR = 0;
+        for (let i = 0; i < N; i++) {
+            const a = L[i] - mL, b = R[i] - mR;
+            num += a * b; dL += a * a; dR += b * b;
+        }
+        let corr = (dL > 1e-9 && dR > 1e-9) ? num / Math.sqrt(dL * dR) : 1;
+        // 無音時は+1（モノ安全）扱い
+        if (dL < 1e-7 && dR < 1e-7) corr = 1;
+
+        // スムージング
+        this._phaseCorr = this._phaseCorr == null ? corr : this._phaseCorr * 0.8 + corr * 0.2;
+        const c = this._phaseCorr;
+
+        const ctx = canvas.getContext('2d');
+        const W = canvas.width, H = canvas.height;
+        ctx.clearRect(0, 0, W, H);
+        // 背景トラック
+        ctx.fillStyle = '#0d1b2a';
+        ctx.fillRect(0, 0, W, H);
+        // 中央(0)目盛り
+        const mid = W / 2;
+        ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+        ctx.beginPath(); ctx.moveTo(mid, 0); ctx.lineTo(mid, H); ctx.stroke();
+        // インジケータ位置: -1→左端, +1→右端
+        const x = ((c + 1) / 2) * W;
+        // 危険(<0)=赤, 注意(0〜0.3)=黄, 安全(>0.3)=緑
+        let col = '#22c55e';
+        if (c < 0) col = '#e94560';
+        else if (c < 0.3) col = '#eab308';
+        ctx.fillStyle = col;
+        ctx.fillRect(Math.min(x, mid), 0, Math.abs(x - mid), H);
+
+        const val = document.getElementById('phase-value');
+        if (val) {
+            val.textContent = (c >= 0 ? '+' : '') + c.toFixed(2);
+            val.style.color = col;
+        }
+    }
+
+    // ============================================
+    // A/Bテイク比較（本体トランスポートとは独立した再生）
+    // ============================================
+    _setupABCompare() {
+        // 状態（独立管理：this.tracks や audioEngine.play とは無関係）
+        this._ab = {
+            bufferA: null, bufferB: null,
+            gainBtoA: 1.0,          // Bをaに揃えるゲイン
+            source: null, gainNode: null,
+            current: 'A', playing: false,
+            startCtxTime: 0, offset: 0
+        };
+
+        const loadFile = async (slot, file) => {
+            if (!file) return;
+            const nameEl = document.getElementById('ab-name-' + slot.toLowerCase());
+            try {
+                const arr = await file.arrayBuffer();
+                const buf = await this.audioEngine.decodeAudio(arr);
+                if (slot === 'A') this._ab.bufferA = buf; else this._ab.bufferB = buf;
+                if (nameEl) nameEl.textContent = '✅ ' + file.name;
+                // 両方そろったらラウドネスマッチ
+                if (this._ab.bufferA && this._ab.bufferB) {
+                    const m = await this.proTools.loudnessMatch(this._ab.bufferA, this._ab.bufferB);
+                    this._ab.gainBtoA = isFinite(m.gainBtoA) ? m.gainBtoA : 1.0;
+                    const st = document.getElementById('ab-status');
+                    if (st) st.textContent = `音量補正済み（A:${m.lufsA.toFixed(1)} / B:${m.lufsB.toFixed(1)} LUFS）→ 再生して切替`;
+                }
+            } catch (e) {
+                this._toast('A/B読込失敗: ' + e.message, 'error');
+            }
+        };
+
+        document.getElementById('btn-ab-load-a')?.addEventListener('click', () => document.getElementById('ab-file-a')?.click());
+        document.getElementById('btn-ab-load-b')?.addEventListener('click', () => document.getElementById('ab-file-b')?.click());
+        document.getElementById('ab-file-a')?.addEventListener('change', e => loadFile('A', e.target.files?.[0]));
+        document.getElementById('ab-file-b')?.addEventListener('change', e => loadFile('B', e.target.files?.[0]));
+
+        const startSource = (offset) => {
+            const ab = this._ab;
+            const buf = ab.current === 'A' ? ab.bufferA : ab.bufferB;
+            if (!buf) return;
+            this.audioEngine.resume();
+            const ctx = this.audioEngine.ctx;
+            ab.source = ctx.createBufferSource();
+            ab.source.buffer = buf;
+            ab.source.loop = true;
+            ab.gainNode = ctx.createGain();
+            ab.gainNode.gain.value = ab.current === 'B' ? ab.gainBtoA : 1.0;
+            ab.source.connect(ab.gainNode);
+            ab.gainNode.connect(this.audioEngine.masterGain);
+            ab.startCtxTime = ctx.currentTime;
+            ab.offset = offset % buf.duration;
+            ab.source.start(0, ab.offset);
+            ab.playing = true;
+        };
+        const stopSource = () => {
+            const ab = this._ab;
+            if (ab.source) { try { ab.source.stop(); } catch (e) {} ab.source.disconnect(); ab.source = null; }
+            if (ab.gainNode) { ab.gainNode.disconnect(); ab.gainNode = null; }
+        };
+        const currentOffset = () => {
+            const ab = this._ab;
+            if (!ab.playing) return 0;
+            const buf = ab.current === 'A' ? ab.bufferA : ab.bufferB;
+            const elapsed = this.audioEngine.ctx.currentTime - ab.startCtxTime + ab.offset;
+            return buf ? elapsed % buf.duration : 0;
+        };
+
+        document.getElementById('btn-ab-play')?.addEventListener('click', () => {
+            if (!this._ab.bufferA && !this._ab.bufferB) { this._toast('先にA/Bを読み込んでください', 'error'); return; }
+            // 本体再生が動いていたら止めて競合回避
+            if (this.audioEngine.isPlaying) { document.getElementById('btn-play')?.click(); }
+            stopSource();
+            startSource(0);
+            this._toast(`比較再生開始（${this._ab.current}）`, 'info');
+        });
+        document.getElementById('btn-ab-toggle')?.addEventListener('click', () => {
+            const ab = this._ab;
+            if (!ab.bufferA || !ab.bufferB) { this._toast('A/B両方を読み込むと切替できます', 'warning'); return; }
+            const pos = currentOffset();
+            ab.current = ab.current === 'A' ? 'B' : 'A';
+            document.getElementById('ab-current').textContent = ab.current;
+            if (ab.playing) { stopSource(); startSource(pos); } // 同じ位置でシームレス切替
+        });
+        document.getElementById('btn-ab-stop')?.addEventListener('click', () => {
+            stopSource();
+            this._ab.playing = false;
+        });
+    }
+
 
     // ============================================
     // PRO TOOLS
@@ -2778,6 +2928,30 @@ class StudioFlowDAW {
                 this._hideLoading();
                 this._toast('解析エラー: ' + err.message, 'error');
             }
+        });
+
+        // 2.8 A/Bテイク比較
+        this._setupABCompare();
+
+        // 2.7 ラウドネス正規化（LUFS）
+        document.getElementById('btn-lufs-normalize')?.addEventListener('click', async () => {
+            const tc = getClip(); if (!tc) return;
+            const target = parseFloat(document.getElementById('lufs-target').value);
+            this._showLoading('ラウドネスを測定中...');
+            try {
+                await new Promise(r => setTimeout(r, 30));
+                const res = await this.proTools.normalizeLoudness(tc.clip.buffer, target);
+                if (res.measured <= -70) {
+                    this._hideLoading();
+                    this._toast('無音に近いため正規化をスキップしました', 'warning');
+                    return;
+                }
+                this._applyBufferToClip(tc.track, tc.clip, res.buffer);
+                const status = document.getElementById('lufs-status');
+                if (status) status.textContent = `${res.measured.toFixed(1)} → ${target} LUFS`;
+                this._hideLoading();
+                this._toast(`ラウドネス正規化完了（${res.measured.toFixed(1)} LUFS → ${target} LUFS / ゲイン ${res.gainDb>=0?'+':''}${res.gainDb.toFixed(1)}dB）`, 'success');
+            } catch (e) { this._hideLoading(); this._toast('エラー: ' + e.message, 'error'); }
         });
 
         // 3. オートチューン / ケロケロ

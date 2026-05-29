@@ -238,6 +238,11 @@
                         <div class="spectrum-panel">
                             <h4><i class="fas fa-wave-square"></i> スペクトラム</h4>
                             <canvas id="spectrum-canvas" width="320" height="120"></canvas>
+                            <div class="phase-row" title="位相相関：+1=モノ互換OK / 0=広いステレオ / マイナス=モノ再生で音が消える危険">
+                                <span class="phase-label">位相相関</span>
+                                <canvas id="phase-canvas" width="240" height="14"></canvas>
+                                <span class="phase-value" id="phase-value">+1.0</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -483,6 +488,59 @@
                                 <button class="pro-apply-btn" id="btn-ref-eq-apply">解析して適用</button>
                             </div>
 
+                            <div class="pro-card">
+                                <div class="pro-card-header">
+                                    <span class="pro-card-icon">🔊</span>
+                                    <div>
+                                        <div class="pro-card-title">ラウドネス正規化（LUFS）</div>
+                                        <div class="pro-card-desc">配信基準の音量に自動で揃える。生成ごとの音量バラつきを解消</div>
+                                    </div>
+                                </div>
+                                <div class="pro-card-controls">
+                                    <label>目標:</label>
+                                    <select id="lufs-target">
+                                        <option value="-14">-14 LUFS（Spotify/YouTube）</option>
+                                        <option value="-16">-16 LUFS（Apple Music）</option>
+                                        <option value="-9">-9 LUFS（大音量・クラブ）</option>
+                                        <option value="-23">-23 LUFS（放送）</option>
+                                    </select>
+                                    <span class="lufs-status" id="lufs-status"></span>
+                                </div>
+                                <button class="pro-apply-btn" id="btn-lufs-normalize">測定して適用</button>
+                            </div>
+
+                        </div>
+
+                        <!-- Section: テイク比較 (A/B) -->
+                        <div class="pro-section-title"><i class="fas fa-code-compare"></i> テイク比較（A/B）</div>
+                        <div class="pro-cards-row">
+                            <div class="pro-card ab-card">
+                                <div class="pro-card-header">
+                                    <span class="pro-card-icon">🆚</span>
+                                    <div>
+                                        <div class="pro-card-title">A/Bテイク比較</div>
+                                        <div class="pro-card-desc">Sunoの複数バージョンを音量を揃えて瞬時に切替試聴。良い方を選べる</div>
+                                    </div>
+                                </div>
+                                <div class="ab-slots">
+                                    <div class="ab-slot">
+                                        <input type="file" id="ab-file-a" accept="audio/*" style="display:none">
+                                        <button class="ab-load-btn" id="btn-ab-load-a">A を読込</button>
+                                        <span class="ab-name" id="ab-name-a">未選択</span>
+                                    </div>
+                                    <div class="ab-slot">
+                                        <input type="file" id="ab-file-b" accept="audio/*" style="display:none">
+                                        <button class="ab-load-btn" id="btn-ab-load-b">B を読込</button>
+                                        <span class="ab-name" id="ab-name-b">未選択</span>
+                                    </div>
+                                </div>
+                                <div class="ab-transport">
+                                    <button id="btn-ab-play" class="ab-play-btn"><i class="fas fa-play"></i> 比較再生</button>
+                                    <button id="btn-ab-toggle" class="ab-toggle-btn"><span id="ab-current">A</span> ⇄ 切替</button>
+                                    <button id="btn-ab-stop" class="ab-stop-btn"><i class="fas fa-stop"></i></button>
+                                </div>
+                                <div class="ab-status" id="ab-status">2曲を読み込むと比較できます</div>
+                            </div>
                         </div>
 
                         <!-- Section: ボーカル加工 -->

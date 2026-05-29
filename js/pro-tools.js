@@ -524,6 +524,109 @@ class ProTools {
     }
 
     // ============================================================
+    // 9. LUFSラウドネス測定・正規化 - Loudness normalization
+    //    ITU-R BS.1770 簡易版（K-weighting近似 + ゲート付きRMS）
+    // ============================================================
+
+    // K-weighting近似フィルタ＋ゲート付き積分ラウドネス測定 → LUFS値を返す
+    async measureLUFS(buffer) {
+        const sr = buffer.sampleRate;
+        const channels = buffer.numberOfChannels;
+        const len = buffer.length;
+
+        // K-weighting（高域シェルフ + ハイパス）をオフラインで適用
+        const offCtx = new OfflineAudioContext(channels, len, sr);
+        const buf = offCtx.createBuffer(channels, len, sr);
+        for (let ch = 0; ch < channels; ch++) buf.getChannelData(ch).set(buffer.getChannelData(ch));
+        const src = offCtx.createBufferSource();
+        src.buffer = buf;
+
+        // ステージ1: 高域シェルフ（+4dB @ ~1.5kHz）
+        const shelf = offCtx.createBiquadFilter();
+        shelf.type = 'highshelf'; shelf.frequency.value = 1500; shelf.gain.value = 4;
+        // ステージ2: ハイパス（~38Hz, RLB曲線近似）
+        const hp = offCtx.createBiquadFilter();
+        hp.type = 'highpass'; hp.frequency.value = 38; hp.Q.value = 0.5;
+
+        src.connect(shelf); shelf.connect(hp); hp.connect(offCtx.destination);
+        src.start(0);
+        const filtered = await offCtx.startRendering();
+
+        // 400msブロックごとの平均パワー → ゲーティング → 積分ラウドネス
+        const blockSize = Math.floor(sr * 0.4);
+        const hop = Math.floor(blockSize / 4); // 75%オーバーラップ
+        const chData = [];
+        for (let ch = 0; ch < channels; ch++) chData.push(filtered.getChannelData(ch));
+
+        const blockLoudness = [];
+        for (let start = 0; start + blockSize <= len; start += hop) {
+            let sum = 0;
+            for (let ch = 0; ch < channels; ch++) {
+                const d = chData[ch];
+                for (let i = start; i < start + blockSize; i++) sum += d[i] * d[i];
+            }
+            const meanSq = sum / (blockSize * channels);
+            const lufs = -0.691 + 10 * Math.log10(meanSq + 1e-12);
+            blockLoudness.push(lufs);
+        }
+        if (blockLoudness.length === 0) return -70;
+
+        // 絶対ゲート(-70 LUFS)
+        const gated1 = blockLoudness.filter(l => l > -70);
+        if (gated1.length === 0) return -70;
+        // 相対ゲート(平均-10 LU)
+        const meanAbs = 10 * Math.log10(gated1.reduce((a, l) => a + Math.pow(10, l / 10), 0) / gated1.length);
+        const relGate = meanAbs - 10;
+        const gated2 = gated1.filter(l => l > relGate);
+        const finalSet = gated2.length > 0 ? gated2 : gated1;
+        const integrated = 10 * Math.log10(finalSet.reduce((a, l) => a + Math.pow(10, l / 10), 0) / finalSet.length);
+        return integrated;
+    }
+
+    // 目標LUFSへゲイン調整＋トゥルーピーク超過を防ぐ簡易リミット
+    async normalizeLoudness(buffer, targetLUFS = -14) {
+        const current = await this.measureLUFS(buffer);
+        if (current <= -70) return { buffer, gainDb: 0, measured: current };
+
+        let gainDb = targetLUFS - current;
+        let gain = Math.pow(10, gainDb / 20);
+
+        // ゲイン適用後のピークを確認し、0dBFS(0.99)を超えないようにクランプ
+        const channels = buffer.numberOfChannels;
+        let peak = 0;
+        for (let ch = 0; ch < channels; ch++) {
+            const d = buffer.getChannelData(ch);
+            for (let i = 0; i < d.length; i++) { const a = Math.abs(d[i]); if (a > peak) peak = a; }
+        }
+        if (peak * gain > 0.99) {
+            gain = 0.99 / Math.max(peak, 1e-6);
+            gainDb = 20 * Math.log10(gain);
+        }
+
+        const sr = buffer.sampleRate;
+        const out = this.engine.ctx.createBuffer(channels, buffer.length, sr);
+        const chunkSize = 44100;
+        for (let ch = 0; ch < channels; ch++) {
+            const sd = buffer.getChannelData(ch);
+            const dd = out.getChannelData(ch);
+            for (let i = 0; i < sd.length; i += chunkSize) {
+                const end = Math.min(i + chunkSize, sd.length);
+                for (let j = i; j < end; j++) dd[j] = Math.max(-1, Math.min(1, sd[j] * gain));
+                await new Promise(r => setTimeout(r, 0));
+            }
+        }
+        return { buffer: out, gainDb, measured: current, target: targetLUFS };
+    }
+
+    // 2つのバッファのラウドネスを揃える係数（A/Bテイク比較用）
+    async loudnessMatch(bufferA, bufferB) {
+        const la = await this.measureLUFS(bufferA);
+        const lb = await this.measureLUFS(bufferB);
+        // Bのゲインを a に合わせる線形係数を返す
+        return { lufsA: la, lufsB: lb, gainBtoA: Math.pow(10, (la - lb) / 20) };
+    }
+
+    // ============================================================
     // Helper: Extract a sub-buffer (for segmentation)
     // ============================================================
     extractSegment(buffer, startSec, endSec) {

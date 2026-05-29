@@ -1554,6 +1554,19 @@ body {
     height: 120px;
     max-width: 100%;
 }
+.phase-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.phase-label { font-size: 10px; color: var(--text-secondary); white-space: nowrap; }
+#phase-canvas {
+    flex: 1;
+    height: 14px;
+    border-radius: 7px;
+    background: #0d1b2a;
+}
+.phase-value { font-size: 11px; font-weight: 700; min-width: 34px; text-align: right; }
 
 .mixer-buttons { display: flex; gap: 2px; flex-shrink: 0; }
 .mixer-buttons button {
@@ -1972,6 +1985,29 @@ body {
 }
 .ref-eq-pick:hover { background: var(--bg-surface-hover); }
 .ref-eq-status { font-size: 11px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 120px; }
+.lufs-status { font-size: 11px; color: var(--accent-green); font-weight: 600; }
+
+/* A/Bテイク比較 */
+.ab-card { min-width: 280px; }
+.ab-slots { display: flex; flex-direction: column; gap: 6px; margin: 4px 0; }
+.ab-slot { display: flex; align-items: center; gap: 8px; }
+.ab-load-btn {
+    background: var(--bg-tertiary); border: 1px solid var(--border-light);
+    color: var(--text-primary); border-radius: var(--radius-sm);
+    padding: 5px 10px; cursor: pointer; font-size: 11px; font-family: inherit; white-space: nowrap;
+}
+.ab-load-btn:hover { background: var(--bg-surface-hover); }
+.ab-name { font-size: 11px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ab-transport { display: flex; gap: 6px; margin: 6px 0; }
+.ab-transport button {
+    border: 1px solid var(--border-light); border-radius: var(--radius-sm);
+    color: var(--text-primary); background: var(--bg-surface); cursor: pointer;
+    font-size: 12px; font-family: inherit; padding: 6px 10px;
+}
+.ab-play-btn { background: var(--accent-secondary) !important; border-color: var(--accent-secondary) !important; color: #fff !important; }
+.ab-toggle-btn { font-weight: 700; flex: 1; }
+.ab-toggle-btn:hover, .ab-transport button:hover { opacity: 0.85; }
+.ab-status { font-size: 11px; color: var(--text-secondary); }
 
 /* ============================================ */
 /* MODALS                                        */
