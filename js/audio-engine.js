@@ -350,20 +350,34 @@ class AudioEngine {
         }
     }
 
+    // ── オフラインレンダリング（書き出し）──────────────────────
+    // 再生時のシグナルチェーンを忠実に再現する。
+    //   トラック: source → clipGain(clip._gain) → gain(volume) → pan
+    //            → eqLow → eqMid → eqHigh → (dry + convolver/wet) → reverbMix
+    //            → sweepFilter → master
+    //   マスター: compressor → 5バンドEQ → limiter → masterGain → destination
+    // clip.offset / clip.duration / bpmRatio / ソロ / FXクリップ自動化も反映。
     renderOffline(tracks, duration, sampleRate = 44100) {
-        const offlineCtx = new OfflineAudioContext(2, duration * sampleRate, sampleRate);
+        const ratio = this.bpmRatio || 1.0;
+        // 音楽時間durationを実時間に換算（varispeedで長さが変わる）
+        const realDuration = duration / ratio;
+        const offlineCtx = new OfflineAudioContext(2, Math.ceil(realDuration * sampleRate), sampleRate);
 
+        // ── マスターチェーン ─────────────────────────
         const masterGain = offlineCtx.createGain();
+        masterGain.gain.value = this.masterGain ? this.masterGain.gain.value : 1.0;
         masterGain.connect(offlineCtx.destination);
 
         const compressor = offlineCtx.createDynamicsCompressor();
         compressor.threshold.value = this.masterCompressor.threshold.value;
+        compressor.knee.value = this.masterCompressor.knee.value;
         compressor.ratio.value = this.masterCompressor.ratio.value;
         compressor.attack.value = this.masterCompressor.attack.value;
         compressor.release.value = this.masterCompressor.release.value;
 
         const limiter = offlineCtx.createDynamicsCompressor();
         limiter.threshold.value = this.masterLimiter.threshold.value;
+        limiter.knee.value = this.masterLimiter.knee.value;
         limiter.ratio.value = this.masterLimiter.ratio.value;
         limiter.attack.value = this.masterLimiter.attack.value;
         limiter.release.value = this.masterLimiter.release.value;
@@ -375,30 +389,153 @@ class AudioEngine {
             filter.type = origFilter.type;
             filter.frequency.value = origFilter.frequency.value;
             filter.gain.value = origFilter.gain.value;
-            if (origFilter.Q) filter.Q.value = origFilter.Q.value;
+            if (origFilter.type === 'peaking') filter.Q.value = origFilter.Q.value;
             prevNode.connect(filter);
             prevNode = filter;
         });
-
         prevNode.connect(limiter);
         limiter.connect(masterGain);
 
+        // ソロ状態の判定（1つでもソロがあれば、ソロ以外は無音）
+        const anySolo = tracks.some(t => t.solo);
+
         tracks.forEach(track => {
             if (track.muted) return;
-            const gain = offlineCtx.createGain();
-            gain.gain.value = track.volume;
-            const pan = offlineCtx.createStereoPanner();
-            pan.pan.value = track.pan;
-            gain.connect(pan);
-            pan.connect(compressor);
+            const n = track.nodes || {};
 
+            // 実効ボリューム（ソロ考慮）
+            const effVol = anySolo && !track.solo ? 0 : track.volume;
+
+            const gain = offlineCtx.createGain();
+            gain.gain.value = effVol;
+            const pan = offlineCtx.createStereoPanner();
+            pan.pan.value = track.pan || 0;
+
+            // 3バンドEQ（ライブのnodes値を複製）
+            const eqLow = offlineCtx.createBiquadFilter();
+            eqLow.type = 'lowshelf'; eqLow.frequency.value = 200;
+            eqLow.gain.value = n.eqLow ? n.eqLow.gain.value : 0;
+            const eqMid = offlineCtx.createBiquadFilter();
+            eqMid.type = 'peaking'; eqMid.frequency.value = 1500; eqMid.Q.value = 1.2;
+            eqMid.gain.value = n.eqMid ? n.eqMid.gain.value : 0;
+            const eqHigh = offlineCtx.createBiquadFilter();
+            eqHigh.type = 'highshelf'; eqHigh.frequency.value = 5000;
+            eqHigh.gain.value = n.eqHigh ? n.eqHigh.gain.value : 0;
+
+            // リバーブ（dry/wet）
+            const reverbDry = offlineCtx.createGain();
+            reverbDry.gain.value = n.reverbDry ? n.reverbDry.gain.value : 1.0;
+            const reverbWet = offlineCtx.createGain();
+            reverbWet.gain.value = n.reverbWet ? n.reverbWet.gain.value : 0.0;
+            const convolver = offlineCtx.createConvolver();
+            if (n.convolver && n.convolver.buffer) {
+                convolver.buffer = n.convolver.buffer;
+            } else {
+                const irLen = Math.floor(sampleRate * 2.5);
+                const ir = offlineCtx.createBuffer(2, irLen, sampleRate);
+                for (let ch = 0; ch < 2; ch++) {
+                    const d = ir.getChannelData(ch);
+                    for (let i = 0; i < irLen; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / irLen, 2.8);
+                }
+                convolver.buffer = ir;
+            }
+            const reverbMix = offlineCtx.createGain();
+            reverbMix.gain.value = 1.0;
+
+            // スウィープフィルター（FX用、デフォルトはバイパス）
+            const sweepFilter = offlineCtx.createBiquadFilter();
+            sweepFilter.type = 'lowpass';
+            sweepFilter.frequency.value = 22050;
+            sweepFilter.Q.value = 1.5;
+
+            // 接続
+            gain.connect(pan);
+            pan.connect(eqLow);
+            eqLow.connect(eqMid);
+            eqMid.connect(eqHigh);
+            eqHigh.connect(reverbDry);
+            eqHigh.connect(convolver);
+            reverbDry.connect(reverbMix);
+            convolver.connect(reverbWet);
+            reverbWet.connect(reverbMix);
+            reverbMix.connect(sweepFilter);
+            sweepFilter.connect(compressor);
+
+            // ── クリップ ────────────────────────────
             track.clips.forEach(clip => {
                 if (!clip.buffer) return;
+                const clipStart = clip.startTime || 0;
+                const clipOffset = clip.offset || 0;
+                const clipDur = clip.duration || (clip.buffer.duration - clipOffset);
+
                 const source = offlineCtx.createBufferSource();
                 source.buffer = clip.buffer;
-                source.connect(gain);
-                source.start(clip.startTime || 0);
+                source.playbackRate.value = ratio;
+
+                // クリップ個別ゲイン
+                const clipGain = offlineCtx.createGain();
+                clipGain.gain.value = clip._gain || 1.0;
+                source.connect(clipGain);
+                clipGain.connect(gain);
+
+                // 開始位置を実時間に換算
+                const when = clipStart / ratio;
+                source.start(when, clipOffset, clipDur);
             });
+
+            // ── FXクリップ自動化 ─────────────────────
+            if (track.fxClips && track.fxClips.length) {
+                track.fxClips.forEach(fx => {
+                    const wStart = fx.startTime / ratio;
+                    const wEnd = (fx.startTime + fx.duration) / ratio;
+                    const baseVol = effVol * (track.clips[0]?._gain || 1);
+                    switch (fx.type) {
+                        case 'filter-up':
+                            sweepFilter.frequency.setValueAtTime(80, wStart);
+                            sweepFilter.frequency.exponentialRampToValueAtTime(22050, wEnd);
+                            break;
+                        case 'filter-down':
+                            sweepFilter.frequency.setValueAtTime(22050, wStart);
+                            sweepFilter.frequency.exponentialRampToValueAtTime(80, wEnd);
+                            sweepFilter.frequency.setValueAtTime(22050, wEnd + 0.01);
+                            break;
+                        case 'volume-rise':
+                            gain.gain.setValueAtTime(0.001, wStart);
+                            gain.gain.linearRampToValueAtTime(baseVol, wEnd);
+                            break;
+                        case 'volume-fall':
+                            gain.gain.setValueAtTime(baseVol, wStart);
+                            gain.gain.linearRampToValueAtTime(0.001, wEnd);
+                            gain.gain.setValueAtTime(baseVol, wEnd + 0.01);
+                            break;
+                        case 'pan-lr':
+                            pan.pan.setValueAtTime(-1, wStart);
+                            pan.pan.linearRampToValueAtTime(1, wEnd);
+                            pan.pan.setValueAtTime(track.pan || 0, wEnd + 0.01);
+                            break;
+                        case 'pan-rl':
+                            pan.pan.setValueAtTime(1, wStart);
+                            pan.pan.linearRampToValueAtTime(-1, wEnd);
+                            pan.pan.setValueAtTime(track.pan || 0, wEnd + 0.01);
+                            break;
+                        case 'wobble': {
+                            const steps = Math.ceil(fx.duration * 8);
+                            for (let i = 0; i <= steps; i++) {
+                                const t = wStart + (i / steps) * (wEnd - wStart);
+                                gain.gain.setValueAtTime(i % 2 === 0 ? baseVol : baseVol * 0.3, t);
+                            }
+                            gain.gain.setValueAtTime(baseVol, wEnd + 0.01);
+                            break;
+                        }
+                        case 'rise-build':
+                            sweepFilter.frequency.setValueAtTime(80, wStart);
+                            sweepFilter.frequency.exponentialRampToValueAtTime(22050, wEnd);
+                            gain.gain.setValueAtTime(0.001, wStart);
+                            gain.gain.linearRampToValueAtTime(baseVol, wEnd);
+                            break;
+                    }
+                });
+            }
         });
 
         return offlineCtx.startRendering();

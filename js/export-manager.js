@@ -34,7 +34,14 @@ class ExportManager {
             if (track.muted) return;
             track.clips.forEach(clip => {
                 if (!clip.buffer) return;
-                const end = (clip.startTime || 0) + clip.buffer.duration;
+                // カット済みクリップは clip.duration を使う（buffer全長ではない）
+                const clipDur = clip.duration || (clip.buffer.duration - (clip.offset || 0));
+                const end = (clip.startTime || 0) + clipDur;
+                if (end > maxDuration) maxDuration = end;
+            });
+            // FXクリップが末尾を延ばす場合も考慮
+            (track.fxClips || []).forEach(fx => {
+                const end = (fx.startTime || 0) + (fx.duration || 0);
                 if (end > maxDuration) maxDuration = end;
             });
         });
@@ -47,25 +54,15 @@ class ExportManager {
             renderedBuffer = await this._normalizeBuffer(renderedBuffer, -0.3);
         }
 
-        let blob;
-        switch (format) {
-            case 'wav':
-                blob = this._encodeWAV(renderedBuffer, bitDepth);
-                break;
-            case 'mp3':
-            case 'ogg':
-            case 'flac':
-                blob = this._encodeWAV(renderedBuffer, bitDepth);
-                break;
-            default:
-                blob = this._encodeWAV(renderedBuffer, bitDepth);
-        }
+        // 全形式WAVエンコード（ブラウザのみで可逆・ライブラリ不要）
+        const blob = this._encodeWAV(renderedBuffer, bitDepth);
 
         return {
             blob,
             url: URL.createObjectURL(blob),
             duration: maxDuration,
-            format,
+            format: 'wav',
+            requestedFormat: format,
             fileName: this._getFileName(metadata, format)
         };
     }
@@ -181,8 +178,10 @@ class ExportManager {
         const title = metadata.title || 'untitled';
         const artist = metadata.artist || '';
         const name = artist ? `${artist} - ${title}` : title;
-        const ext = format === 'mp3' ? 'wav' : format === 'ogg' ? 'wav' : format === 'flac' ? 'wav' : 'wav';
-        return `${name}.${ext}`;
+        // 本DAWは可逆・ライブラリ不要のWAVのみエンコード可能。
+        // 他形式を選んでも中身はWAVなので、拡張子も正直に .wav とする。
+        const safe = name.replace(/[\\/:*?"<>|]/g, '_');
+        return `${safe}.wav`;
     }
 
     downloadFile(url, fileName) {
