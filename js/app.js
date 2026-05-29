@@ -2864,6 +2864,24 @@ class StudioFlowDAW {
             } catch (e) { this._hideLoading(); this._toast('エラー: ' + e.message, 'error'); }
         });
 
+        // 1.5 イントロフェードイン
+        document.getElementById('fadein-duration')?.addEventListener('input', (e) => {
+            const el = document.getElementById('fadein-duration-val');
+            if (el) el.textContent = parseFloat(e.target.value).toFixed(1) + '秒';
+        });
+        document.getElementById('btn-intro-fade')?.addEventListener('click', async () => {
+            const tc = getClip(); if (!tc) return;
+            const dur = parseFloat(document.getElementById('fadein-duration').value);
+            const type = document.getElementById('fadein-type').value;
+            this._showLoading('フェードイン適用中...');
+            try {
+                const newBuf = await this.proTools.applyIntroFade(tc.clip.buffer, dur, type);
+                this._applyBufferToClip(tc.track, tc.clip, newBuf);
+                this._hideLoading();
+                this._toast(`イントロフェードイン適用 (${dur}秒)`, 'success');
+            } catch (e) { this._hideLoading(); this._toast('エラー: ' + e.message, 'error'); }
+        });
+
         // 2.5 Suno AIクリーンアップEQ（マスターEQプリセット・トグル）
         document.getElementById('btn-suno-eq')?.addEventListener('click', () => {
             const enabled = this.audioEngine.setSunoEQPreset(!this.audioEngine.sunoEnabled);
@@ -3917,12 +3935,14 @@ class StudioFlowDAW {
                 solo: t.solo,
                 isAIMix: t._isAIMix || false,
                 isReference: t._isReference || false,
+                fxClips: (t.fxClips || []).map(f => ({ id: f.id, type: f.type, startTime: f.startTime, duration: f.duration })),
                 clips: t.clips.map(c => ({
                     id: c.id,
                     name: c.name,
                     startTime: c.startTime,
                     duration: c.duration,
                     offset: c.offset || 0,
+                    gain: c._gain ?? 1.0,
                     audioId: c.id   // IndexedDBのキーとして使用
                 }))
             }));
@@ -3992,6 +4012,7 @@ class StudioFlowDAW {
                         startTime: clipMeta.startTime || 0,
                         duration: clipMeta.duration || result.buffer.duration,
                         offset: clipMeta.offset || 0,
+                        _gain: clipMeta.gain ?? 1.0,
                         _saved: true
                     };
                     track.clips.push(clip);
@@ -4001,6 +4022,14 @@ class StudioFlowDAW {
                     }
                     this._renderClip(track, clip);
                     this._updateTrackHeader(track);
+                }
+
+                // FXクリップ（フィルタースウィープ等）を復元
+                if (trackMeta.fxClips && trackMeta.fxClips.length) {
+                    track.fxClips = trackMeta.fxClips.map(f => ({
+                        id: f.id, type: f.type, startTime: f.startTime, duration: f.duration
+                    }));
+                    this._renderFxLane?.(track);
                 }
             }
 

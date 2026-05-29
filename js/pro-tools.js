@@ -79,6 +79,36 @@ class ProTools {
         return out;
     }
 
+    // イントロ フェードイン（曲頭をなめらかに立ち上げる）
+    async applyIntroFade(buffer, fadeDuration = 2.0, fadeType = 'exponential') {
+        const sr = buffer.sampleRate;
+        const len = buffer.length;
+        const channels = buffer.numberOfChannels;
+        const fadeSamples = Math.min(Math.floor(sr * fadeDuration), Math.floor(len * 0.9));
+
+        const out = this.engine.ctx.createBuffer(channels, len, sr);
+        const chunkSize = 44100;
+
+        for (let ch = 0; ch < channels; ch++) {
+            const src = buffer.getChannelData(ch);
+            const dst = out.getChannelData(ch);
+            for (let i = 0; i < fadeSamples; i += chunkSize) {
+                const end = Math.min(i + chunkSize, fadeSamples);
+                for (let j = i; j < end; j++) {
+                    const t = j / fadeSamples; // 0→1
+                    let gain;
+                    if (fadeType === 'exponential') gain = Math.pow(t, 2.5);
+                    else if (fadeType === 's-curve')  gain = t * t * (3 - 2 * t);
+                    else                               gain = t;
+                    dst[j] = src[j] * Math.max(0, gain);
+                }
+                await new Promise(r => setTimeout(r, 0));
+            }
+            for (let i = fadeSamples; i < len; i++) dst[i] = src[i];
+        }
+        return out;
+    }
+
     // ============================================================
     // 3. ボーカル加工 (ケロケロ/スムース) - Vocal character effect
     // ============================================================

@@ -437,6 +437,27 @@
 
                             <div class="pro-card">
                                 <div class="pro-card-header">
+                                    <span class="pro-card-icon">🌄</span>
+                                    <div>
+                                        <div class="pro-card-title">イントロ フェードイン</div>
+                                        <div class="pro-card-desc">曲の始まりをなめらかに立ち上げる。唐突な出だしを解消</div>
+                                    </div>
+                                </div>
+                                <div class="pro-card-controls">
+                                    <label>長さ:</label>
+                                    <input type="range" id="fadein-duration" min="0.5" max="10" step="0.5" value="2">
+                                    <span id="fadein-duration-val">2.0秒</span>
+                                    <select id="fadein-type">
+                                        <option value="exponential" selected>自然（指数）</option>
+                                        <option value="s-curve">S字</option>
+                                        <option value="linear">リニア</option>
+                                    </select>
+                                </div>
+                                <button class="pro-apply-btn" id="btn-intro-fade">適用</button>
+                            </div>
+
+                            <div class="pro-card">
+                                <div class="pro-card-header">
                                     <span class="pro-card-icon">🌅</span>
                                     <div>
                                         <div class="pro-card-title">アウトロ フェードアウト</div>
