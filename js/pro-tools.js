@@ -695,6 +695,83 @@ class ProTools {
         return { buffer: out, gainDb: 20 * Math.log10(gain), peakDbtp: 20 * Math.log10(linear), changed: true };
     }
 
+    // ============================================================
+    // キー(調)検出 - Krumhansl-Schmuckler プロファイル法
+    // クロマベクトル（12半音のエネルギー）を作り、長調/短調の
+    // 理論プロファイルとの相関が最大になる調を推定する。読み取り専用。
+    // ============================================================
+    async detectKey(buffer) {
+        const sr = buffer.sampleRate;
+        // モノラル化（最大10分まで解析）
+        const maxSamples = Math.min(buffer.length, sr * 600);
+        const ch0 = buffer.getChannelData(0);
+        const ch1 = buffer.numberOfChannels > 1 ? buffer.getChannelData(1) : null;
+
+        const N = 8192; // FFTサイズ
+        const hop = N; // 重なりなしで十分
+        const re = new Float32Array(N), im = new Float32Array(N);
+        const chroma = new Float32Array(12);
+        const A4 = 440;
+        // 各FFTビンが属するピッチクラスを事前計算
+        const binPC = new Int8Array(N / 2);
+        for (let k = 1; k < N / 2; k++) {
+            const freq = k * sr / N;
+            if (freq < 27.5 || freq > 5000) { binPC[k] = -1; continue; }
+            const midi = 69 + 12 * Math.log2(freq / A4);
+            binPC[k] = ((Math.round(midi) % 12) + 12) % 12;
+        }
+
+        for (let start = 0; start + N <= maxSamples; start += hop) {
+            for (let i = 0; i < N; i++) {
+                let s = ch0[start + i];
+                if (ch1) s = (s + ch1[start + i]) * 0.5;
+                // Hann窓
+                const w = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / (N - 1));
+                re[i] = s * w; im[i] = 0;
+            }
+            this._fft(re, im);
+            for (let k = 1; k < N / 2; k++) {
+                const pc = binPC[k];
+                if (pc < 0) continue;
+                chroma[pc] += Math.sqrt(re[k] * re[k] + im[k] * im[k]);
+            }
+        }
+
+        // 正規化
+        let sum = 0; for (let i = 0; i < 12; i++) sum += chroma[i];
+        if (sum === 0) return { key: '--', confidence: 0 };
+        for (let i = 0; i < 12; i++) chroma[i] /= sum;
+
+        // Krumhansl-Schmuckler プロファイル
+        const major = [6.35,2.23,3.48,2.33,4.38,4.09,2.52,5.19,2.39,3.66,2.29,2.88];
+        const minor = [6.33,2.68,3.52,5.38,2.60,3.53,2.54,4.75,3.98,2.69,3.34,3.17];
+        const names = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+
+        const corr = (profile, shift) => {
+            // ピアソン相関
+            let mp = 0, mc = 0;
+            for (let i = 0; i < 12; i++) { mp += profile[i]; mc += chroma[i]; }
+            mp /= 12; mc /= 12;
+            let num = 0, dp = 0, dc = 0;
+            for (let i = 0; i < 12; i++) {
+                const p = profile[i] - mp;
+                const c = chroma[(i + shift) % 12] - mc;
+                num += p * c; dp += p * p; dc += c * c;
+            }
+            return num / (Math.sqrt(dp * dc) || 1);
+        };
+
+        let best = { key: '--', score: -Infinity, mode: '' };
+        for (let shift = 0; shift < 12; shift++) {
+            const cMaj = corr(major, shift);
+            if (cMaj > best.score) best = { key: names[shift], score: cMaj, mode: 'major' };
+            const cMin = corr(minor, shift);
+            if (cMin > best.score) best = { key: names[shift], score: cMin, mode: 'minor' };
+        }
+        const label = best.mode === 'minor' ? `${best.key}m` : best.key;
+        return { key: label, mode: best.mode, confidence: +best.score.toFixed(2) };
+    }
+
     // 2つのバッファのラウドネスを揃える係数（A/Bテイク比較用）
     async loudnessMatch(bufferA, bufferB) {
         const la = await this.measureLUFS(bufferA);

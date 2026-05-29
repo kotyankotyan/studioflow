@@ -1336,6 +1336,9 @@ class StudioFlowDAW {
             if (bpmInput) bpmInput.value = detectedBpm;
         } catch(e) { /* BPM検出失敗は無視 */ }
 
+        // キー(調)自動検出（読み取り専用・非同期で表示更新）
+        this._detectAndShowKey(audioBuffer);
+
         const mixClip = {
             id: 'clip_mix_' + Date.now(),
             name: songName,
@@ -3921,6 +3924,21 @@ class StudioFlowDAW {
     // ============================================
 
     /** プロジェクトを自動保存 */
+    /** キー(調)を検出して表示（音は変えない・失敗しても無視） */
+    async _detectAndShowKey(buffer) {
+        const el = document.getElementById('key-display');
+        if (el) el.textContent = '...';
+        try {
+            const res = await this.proTools.detectKey(buffer);
+            if (el) {
+                el.textContent = res.key;
+                el.title = `推定キー: ${res.key}（信頼度 ${res.confidence}）`;
+            }
+        } catch (e) {
+            if (el) el.textContent = '--';
+        }
+    }
+
     async _saveProject() {
         if (!this.storage) return;
         try {
