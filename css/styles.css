@@ -1938,6 +1938,15 @@ body {
 .suno-eq-btn.active { background: var(--accent-green); border-color: var(--accent-green); }
 .suno-eq-status { font-weight: 600; color: var(--text-secondary); }
 
+/* リファレンスEQマッチング */
+.ref-eq-pick {
+    background: var(--bg-tertiary); border: 1px solid var(--border-light);
+    color: var(--text-primary); border-radius: var(--radius-sm);
+    padding: 5px 8px; cursor: pointer; font-size: 11px; font-family: inherit;
+}
+.ref-eq-pick:hover { background: var(--bg-surface-hover); }
+.ref-eq-status { font-size: 11px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 120px; }
+
 /* ============================================ */
 /* MODALS                                        */
 /* ============================================ */

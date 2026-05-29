@@ -2656,6 +2656,58 @@ class StudioFlowDAW {
                 : 'Suno AIクリーンアップEQ：オフ（元の設定に復元）', enabled ? 'success' : 'info');
         });
 
+        // 2.6 リファレンスEQマッチング
+        this._refEqBuffer = null;
+        document.getElementById('btn-ref-eq-pick')?.addEventListener('click', () => {
+            document.getElementById('ref-eq-file')?.click();
+        });
+        document.getElementById('ref-eq-file')?.addEventListener('change', async (e) => {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            const status = document.getElementById('ref-eq-status');
+            this._showLoading('参照曲を読み込み中...');
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                this._refEqBuffer = await this.audioEngine.decodeAudio(arrayBuffer);
+                if (status) status.textContent = '✅ ' + file.name;
+                this._hideLoading();
+                this._toast('参照曲を読み込みました。「解析して適用」を押してください', 'info');
+            } catch (err) {
+                this._hideLoading();
+                this._refEqBuffer = null;
+                if (status) status.textContent = '読込失敗';
+                this._toast('参照曲の読込に失敗: ' + err.message, 'error');
+            }
+        });
+        document.getElementById('btn-ref-eq-apply')?.addEventListener('click', async () => {
+            if (!this._refEqBuffer) { this._toast('先に参照曲を選んでください', 'error'); return; }
+            const tc = getClip(); if (!tc) return;
+            this._showLoading('スペクトルを解析中...');
+            try {
+                // 非同期描画のため少し待つ
+                await new Promise(r => setTimeout(r, 30));
+                // Suno EQがON中なら状態をクリアして競合（OFF時の値復元上書き）を防ぐ
+                if (this.audioEngine.sunoEnabled) {
+                    this.audioEngine._presunoEQ = null;
+                    this.audioEngine.sunoEnabled = false;
+                    document.getElementById('btn-suno-eq')?.classList.remove('active');
+                    const ss = document.getElementById('suno-eq-status');
+                    if (ss) ss.textContent = '現在: オフ';
+                }
+                const eq = this.proTools.computeMatchingEQ(this._refEqBuffer, tc.clip.buffer);
+                Object.entries(eq).forEach(([band, val]) => {
+                    this.audioEngine.setMasterEQ(band, val);
+                });
+                this._syncMasterEQSliders();
+                this._hideLoading();
+                const summary = `Low ${eq.low>=0?'+':''}${eq.low} / LMid ${eq.lowmid>=0?'+':''}${eq.lowmid} / Mid ${eq.mid>=0?'+':''}${eq.mid} / HMid ${eq.highmid>=0?'+':''}${eq.highmid} / High ${eq.high>=0?'+':''}${eq.high} dB`;
+                this._toast('リファレンスEQ適用完了 → ' + summary, 'success');
+            } catch (err) {
+                this._hideLoading();
+                this._toast('解析エラー: ' + err.message, 'error');
+            }
+        });
+
         // 3. オートチューン / ケロケロ
         document.getElementById('btn-autotune')?.addEventListener('click', async () => {
             const tc = getClip(); if (!tc) return;

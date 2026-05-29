@@ -463,6 +463,22 @@
                                 </button>
                             </div>
 
+                            <div class="pro-card">
+                                <div class="pro-card-header">
+                                    <span class="pro-card-icon">🎯</span>
+                                    <div>
+                                        <div class="pro-card-title">リファレンスEQマッチング</div>
+                                        <div class="pro-card-desc">プロの市販曲を読込→その音質バランスにマスターEQを自動調整</div>
+                                    </div>
+                                </div>
+                                <div class="pro-card-controls">
+                                    <input type="file" id="ref-eq-file" accept="audio/*" style="display:none">
+                                    <button class="ref-eq-pick" id="btn-ref-eq-pick"><i class="fas fa-file-audio"></i> 参照曲を選ぶ</button>
+                                    <span class="ref-eq-status" id="ref-eq-status">未選択</span>
+                                </div>
+                                <button class="pro-apply-btn" id="btn-ref-eq-apply">解析して適用</button>
+                            </div>
+
                         </div>
 
                         <!-- Section: ボーカル加工 -->

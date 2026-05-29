@@ -411,6 +411,119 @@ class ProTools {
     }
 
     // ============================================================
+    // 8. リファレンスマッチングEQ - Reference matching EQ
+    //    プロの市販曲のスペクトルに合わせて5バンドEQ補正値を算出する
+    // ============================================================
+
+    // 軽量 radix-2 FFT（in-place, re/im は長さ2^nのFloat32Array）
+    _fft(re, im) {
+        const n = re.length;
+        if (n <= 1) return;
+        // bit-reversal permutation
+        for (let i = 1, j = 0; i < n; i++) {
+            let bit = n >> 1;
+            for (; j & bit; bit >>= 1) j ^= bit;
+            j ^= bit;
+            if (i < j) {
+                let t = re[i]; re[i] = re[j]; re[j] = t;
+                t = im[i]; im[i] = im[j]; im[j] = t;
+            }
+        }
+        for (let len = 2; len <= n; len <<= 1) {
+            const ang = -2 * Math.PI / len;
+            const wRe = Math.cos(ang), wIm = Math.sin(ang);
+            for (let i = 0; i < n; i += len) {
+                let curRe = 1, curIm = 0;
+                for (let k = 0; k < len / 2; k++) {
+                    const aRe = re[i + k], aIm = im[i + k];
+                    const bRe = re[i + k + len / 2], bIm = im[i + k + len / 2];
+                    const tRe = bRe * curRe - bIm * curIm;
+                    const tIm = bRe * curIm + bIm * curRe;
+                    re[i + k] = aRe + tRe; im[i + k] = aIm + tIm;
+                    re[i + k + len / 2] = aRe - tRe; im[i + k + len / 2] = aIm - tIm;
+                    const nRe = curRe * wRe - curIm * wIm;
+                    curIm = curRe * wIm + curIm * wRe;
+                    curRe = nRe;
+                }
+            }
+        }
+    }
+
+    // バッファの平均スペクトルを5バンド(dB)に集約して返す
+    // bands: { low, lowmid, mid, highmid, high } 各dB(相対)
+    analyzeSpectrumBands(buffer) {
+        const data = buffer.getChannelData(0);
+        const sr = buffer.sampleRate;
+        const N = 4096;                       // FFTサイズ
+        const hann = new Float32Array(N);
+        for (let i = 0; i < N; i++) hann[i] = 0.5 * (1 - Math.cos(2 * Math.PI * i / (N - 1)));
+
+        // 重い処理を避けるため最大120フレームに間引いてサンプリング
+        const maxFrames = 120;
+        const totalFrames = Math.max(1, Math.floor(data.length / N));
+        const stride = Math.max(1, Math.floor(totalFrames / maxFrames));
+        const mag = new Float32Array(N / 2);
+        let frameCount = 0;
+
+        for (let f = 0; f < totalFrames; f += stride) {
+            const start = f * N;
+            if (start + N > data.length) break;
+            const re = new Float32Array(N);
+            const im = new Float32Array(N);
+            for (let i = 0; i < N; i++) re[i] = data[start + i] * hann[i];
+            this._fft(re, im);
+            for (let i = 0; i < N / 2; i++) {
+                mag[i] += Math.sqrt(re[i] * re[i] + im[i] * im[i]);
+            }
+            frameCount++;
+        }
+        if (frameCount === 0) return { low: 0, lowmid: 0, mid: 0, highmid: 0, high: 0 };
+        for (let i = 0; i < mag.length; i++) mag[i] /= frameCount;
+
+        // 周波数バンド定義（マスターEQのバンドに対応）
+        const bandRanges = {
+            low:    [20, 160],
+            lowmid: [160, 700],
+            mid:    [700, 2500],
+            highmid:[2500, 7000],
+            high:   [7000, sr / 2]
+        };
+        const binHz = sr / N;
+        const result = {};
+        for (const [name, [lo, hi]] of Object.entries(bandRanges)) {
+            const loBin = Math.max(1, Math.floor(lo / binHz));
+            const hiBin = Math.min(mag.length - 1, Math.ceil(hi / binHz));
+            let sum = 0, cnt = 0;
+            for (let i = loBin; i <= hiBin; i++) { sum += mag[i] * mag[i]; cnt++; }
+            const rms = Math.sqrt(sum / Math.max(cnt, 1));
+            result[name] = 20 * Math.log10(rms + 1e-9); // dB
+        }
+        return result;
+    }
+
+    // リファレンス曲のスペクトルにターゲットを近づけるEQ補正値を算出
+    // 戻り値: { low, lowmid, mid, highmid, high } 各dB(-maxBoost～+maxBoost)
+    computeMatchingEQ(refBuffer, targetBuffer, maxBoost = 6) {
+        const ref = this.analyzeSpectrumBands(refBuffer);
+        const tgt = this.analyzeSpectrumBands(targetBuffer);
+        const bands = ['low', 'lowmid', 'mid', 'highmid', 'high'];
+
+        // 各バンドの差分(dB) = リファレンス - ターゲット
+        const diffs = {};
+        bands.forEach(b => { diffs[b] = ref[b] - tgt[b]; });
+
+        // 全体音量差を除去して「音色バランス」だけを抽出（平均を引く）
+        const avg = bands.reduce((a, b) => a + diffs[b], 0) / bands.length;
+        const eq = {};
+        bands.forEach(b => {
+            let v = diffs[b] - avg;
+            v = Math.max(-maxBoost, Math.min(maxBoost, v)); // クランプ
+            eq[b] = Math.round(v * 10) / 10;
+        });
+        return eq;
+    }
+
+    // ============================================================
     // Helper: Extract a sub-buffer (for segmentation)
     // ============================================================
     extractSegment(buffer, startSec, endSec) {
