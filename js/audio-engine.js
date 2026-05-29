@@ -71,9 +71,11 @@ class AudioEngine {
         this.merger = this.ctx.createChannelMerger(2);
 
         this.masterAnalyserL = this.ctx.createAnalyser();
-        this.masterAnalyserL.fftSize = 256;
+        this.masterAnalyserL.fftSize = 2048;       // スペクトラム解像度UP（メーターにも影響なし）
+        this.masterAnalyserL.smoothingTimeConstant = 0.8;
         this.masterAnalyserR = this.ctx.createAnalyser();
-        this.masterAnalyserR.fftSize = 256;
+        this.masterAnalyserR.fftSize = 2048;
+        this.masterAnalyserR.smoothingTimeConstant = 0.8;
 
         this.masterGain.connect(this.splitter);
         this.splitter.connect(this.masterAnalyserL, 0);

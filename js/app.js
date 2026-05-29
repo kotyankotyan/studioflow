@@ -2515,9 +2515,81 @@ class StudioFlowDAW {
                     if (rCanvas) this.waveform.drawMeter(rCanvas, level * 0.95);
                 });
             }
+            // スペクトラムは常時描画（停止中は空＝グリッドのみ）
+            this._drawSpectrum();
             this._meterRAF = requestAnimationFrame(update);
         };
         this._meterRAF = requestAnimationFrame(update);
+    }
+
+    // リアルタイム周波数スペクトラム表示（対数軸＋ピークホールド）
+    _drawSpectrum() {
+        const canvas = document.getElementById('spectrum-canvas');
+        const analyser = this.audioEngine.masterAnalyserL;
+        if (!canvas || !analyser) return;
+        // 非表示（別タブ表示中など）は描画スキップ＝無駄な処理を回避
+        if (canvas.offsetParent === null) return;
+
+        const ctx = canvas.getContext('2d');
+        const W = canvas.width, H = canvas.height;
+        const sr = this.audioEngine.ctx.sampleRate;
+        const bins = analyser.frequencyBinCount;
+        const freqData = new Uint8Array(bins);
+        analyser.getByteFrequencyData(freqData);
+
+        // 背景
+        ctx.fillStyle = '#0d1b2a';
+        ctx.fillRect(0, 0, W, H);
+
+        // 対数バー: 20Hz〜20kHz を NB本に分割
+        const NB = 56;
+        const fMin = 20, fMax = 20000;
+        const binHz = sr / (analyser.fftSize);
+
+        if (!this._spectrumPeaks || this._spectrumPeaks.length !== NB) {
+            this._spectrumPeaks = new Float32Array(NB);
+        }
+        const peaks = this._spectrumPeaks;
+
+        // 周波数グリッド線（100Hz / 1kHz / 10kHz）
+        ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+        ctx.fillStyle = 'rgba(160,160,176,0.7)';
+        ctx.font = '9px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        [100, 1000, 10000].forEach(f => {
+            const x = W * (Math.log(f / fMin) / Math.log(fMax / fMin));
+            ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H - 10); ctx.stroke();
+            const label = f >= 1000 ? (f / 1000) + 'k' : f + '';
+            ctx.fillText(label, x, H - 1);
+        });
+
+        const barW = W / NB;
+        for (let i = 0; i < NB; i++) {
+            // このバーが担当する周波数範囲（対数）
+            const f0 = fMin * Math.pow(fMax / fMin, i / NB);
+            const f1 = fMin * Math.pow(fMax / fMin, (i + 1) / NB);
+            const b0 = Math.max(1, Math.floor(f0 / binHz));
+            const b1 = Math.min(bins - 1, Math.ceil(f1 / binHz));
+            let max = 0;
+            for (let b = b0; b <= b1; b++) if (freqData[b] > max) max = freqData[b];
+            const v = max / 255;
+
+            // ピークホールド（ゆっくり落ちる）
+            if (v > peaks[i]) peaks[i] = v;
+            else peaks[i] = Math.max(0, peaks[i] - 0.015);
+
+            const barH = v * (H - 12);
+            const x = i * barW;
+            // 帯域で色を変える（低=青 / 中=緑 / 高=赤寄り）
+            const hue = 200 - (i / NB) * 200;
+            ctx.fillStyle = `hsl(${hue}, 80%, 55%)`;
+            ctx.fillRect(x, H - 10 - barH, barW - 1, barH);
+
+            // ピークマーカー
+            const py = H - 10 - peaks[i] * (H - 12);
+            ctx.fillStyle = 'rgba(255,255,255,0.7)';
+            ctx.fillRect(x, py, barW - 1, 2);
+        }
     }
 
     // ============================================

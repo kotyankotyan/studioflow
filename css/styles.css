@@ -1529,6 +1529,32 @@ body {
 
 .volume-label { font-size: 11px; color: var(--text-secondary); flex-shrink: 0; }
 
+/* スペクトラムアナライザー */
+.spectrum-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 6px 10px;
+    background: var(--bg-surface);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    align-self: stretch;
+}
+.spectrum-panel h4 {
+    font-size: 11px;
+    color: var(--accent-secondary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+#spectrum-canvas {
+    border-radius: var(--radius-sm);
+    background: #0d1b2a;
+    width: 320px;
+    height: 120px;
+    max-width: 100%;
+}
+
 .mixer-buttons { display: flex; gap: 2px; flex-shrink: 0; }
 .mixer-buttons button {
     width: 24px;
