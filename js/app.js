@@ -54,6 +54,9 @@ class StudioFlowDAW {
         this.storage = new StorageManager();
         await this.storage.open();
 
+        // モーダル/ポップアップを最上位へ移動（簡単モードでも正しく開くように）
+        this._relocateOverlays();
+
         this._setupEventListeners();
         this._setupEasyModeListeners();
         this._setupCreatorListeners();
@@ -74,6 +77,30 @@ class StudioFlowDAW {
 
         // ストレージ使用量を表示
         this._updateStorageIndicator();
+    }
+
+    /**
+     * モーダル・ポップアップ類を #app 直下へ移動する。
+     * これらは元々 #advanced-mode 内にあり、簡単モード（advanced-mode が
+     * display:none）では開いても表示されず、状態だけ残って上級者モード
+     * 切替時に一斉に開く不具合があった。最上位に移すことで両モードで
+     * 正しくオーバーレイ表示される。
+     */
+    _relocateOverlays() {
+        const app = document.getElementById('app');
+        if (!app) return;
+        const overlays = document.querySelectorAll('.modal, #preset-popup');
+        overlays.forEach(el => {
+            // 念のため閉じた状態にしてから移動
+            el.classList.add('hidden');
+            if (el.parentElement !== app) app.appendChild(el);
+        });
+    }
+
+    /** 開いている全モーダル/ポップアップを閉じる（モード切替時の安全策） */
+    _closeAllOverlays() {
+        document.querySelectorAll('.modal:not(.hidden), #preset-popup:not(.hidden)')
+            .forEach(el => el.classList.add('hidden'));
     }
 
     // ============================================
@@ -175,6 +202,7 @@ class StudioFlowDAW {
     }
 
     _switchToAdvanced() {
+        this._closeAllOverlays(); // 切替時に開きかけのモーダルを一掃
         this.easyMode = false;
         document.getElementById('easy-mode').classList.add('hidden');
         document.getElementById('advanced-mode').classList.remove('hidden');
@@ -244,6 +272,7 @@ class StudioFlowDAW {
     }
 
     _switchToEasy() {
+        this._closeAllOverlays();
         this.easyMode = true;
         document.getElementById('advanced-mode').classList.add('hidden');
         document.getElementById('easy-mode').classList.remove('hidden');
