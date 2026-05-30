@@ -3831,6 +3831,27 @@ class StudioFlowDAW {
                     if (e.ctrlKey || e.metaKey) { e.preventDefault(); document.getElementById('btn-redo').click(); }
                     break;
                 case 'Home': this.audioEngine.seek(0); this._updatePlayhead(0); break;
+                case 'End': {
+                    let maxDur = 0;
+                    this.tracks.forEach(t => t.clips.forEach(c => {
+                        const end = (c.startTime || 0) + (c.duration || 0);
+                        if (end > maxDur) maxDur = end;
+                    }));
+                    this.audioEngine.seek(maxDur); this._updatePlayhead(maxDur);
+                    break;
+                }
+                case 'KeyL':
+                    if (!e.ctrlKey && !e.metaKey) { e.preventDefault(); document.getElementById('btn-loop')?.click(); }
+                    break;
+                case 'Escape':
+                    // 開いているモーダルを閉じる／A/B比較を停止
+                    document.querySelectorAll('.modal:not(.hidden)').forEach(m => m.classList.add('hidden'));
+                    document.getElementById('btn-ab-stop')?.click();
+                    document.getElementById('shortcut-help')?.remove();
+                    break;
+                case 'Slash':
+                    if (e.shiftKey) { e.preventDefault(); this._toggleShortcutHelp(); }
+                    break;
                 case 'Delete': case 'Backspace':
                     if (this.selectedClip && this.selectedTrack) {
                         const idx = this.selectedTrack.clips.indexOf(this.selectedClip);
@@ -3844,6 +3865,33 @@ class StudioFlowDAW {
                     break;
             }
         });
+    }
+
+    /** ショートカット一覧オーバーレイの表示/非表示（? キー） */
+    _toggleShortcutHelp() {
+        const existing = document.getElementById('shortcut-help');
+        if (existing) { existing.remove(); return; }
+        const rows = [
+            ['Space', '再生 / 一時停止'],
+            ['Home / End', '先頭 / 末尾へ移動'],
+            ['← / →', '10秒 戻る / 進む'],
+            ['+ / -', 'ズーム 拡大 / 縮小'],
+            ['L', 'ループ オン/オフ'],
+            ['Ctrl + Z / Y', '元に戻す / やり直し'],
+            ['Delete / Backspace', '選択クリップを削除'],
+            ['Esc', 'モーダルを閉じる / A・B停止'],
+            ['Shift + ?', 'このヘルプを表示'],
+        ];
+        const overlay = document.createElement('div');
+        overlay.id = 'shortcut-help';
+        overlay.innerHTML = `
+            <div class="shortcut-help-box">
+                <div class="shortcut-help-title">⌨️ キーボードショートカット</div>
+                ${rows.map(([k, d]) => `<div class="shortcut-help-row"><kbd>${k}</kbd><span>${d}</span></div>`).join('')}
+                <div class="shortcut-help-hint">もう一度 Shift + ? または Esc で閉じる</div>
+            </div>`;
+        overlay.addEventListener('click', () => overlay.remove());
+        document.body.appendChild(overlay);
     }
 
     _getVocalSettings() {

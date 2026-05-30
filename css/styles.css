@@ -2043,6 +2043,32 @@ body {
 .ab-overlay-legend .ab-leg-b { color: #facc15; }
 .ab-overlay-legend .ab-leg-diff { color: #e94560; }
 
+/* キーボードショートカット ヘルプ */
+#shortcut-help {
+    position: fixed; inset: 0; z-index: 9999;
+    background: rgba(0,0,0,0.6);
+    display: flex; align-items: center; justify-content: center;
+}
+.shortcut-help-box {
+    background: var(--bg-secondary, #1a1a24);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px 28px;
+    min-width: 320px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+}
+.shortcut-help-title { font-size: 15px; font-weight: 700; margin-bottom: 14px; color: var(--text-primary); }
+.shortcut-help-row { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 5px 0; font-size: 13px; color: var(--text-secondary); }
+.shortcut-help-row kbd {
+    background: var(--bg-primary, #0d0d14);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 2px 8px;
+    font-family: monospace; font-size: 12px;
+    color: #4ade80; white-space: nowrap;
+}
+.shortcut-help-hint { margin-top: 14px; font-size: 11px; color: var(--text-secondary); opacity: 0.7; text-align: center; }
+
 /* ============================================ */
 /* MODALS                                        */
 /* ============================================ */
