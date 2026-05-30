@@ -2680,6 +2680,7 @@ class StudioFlowDAW {
                     this._ab.gainBtoA = isFinite(m.gainBtoA) ? m.gainBtoA : 1.0;
                     const st = document.getElementById('ab-status');
                     if (st) st.textContent = `音量補正済み（A:${m.lufsA.toFixed(1)} / B:${m.lufsB.toFixed(1)} LUFS）→ 再生して切替`;
+                    this._drawABOverlay();
                 }
             } catch (e) {
                 this._toast('A/B読込失敗: ' + e.message, 'error');
@@ -2742,6 +2743,62 @@ class StudioFlowDAW {
             stopSource();
             this._ab.playing = false;
         });
+    }
+
+    /** A/B波形オーバーレイ描画（音量補正後・差分ハイライト付き／描画のみ） */
+    _drawABOverlay() {
+        const canvas = document.getElementById('ab-overlay-canvas');
+        const ab = this._ab;
+        if (!canvas || !ab || !ab.bufferA || !ab.bufferB) return;
+        const ctx = canvas.getContext('2d');
+        const W = canvas.width, H = canvas.height, mid = H / 2;
+        ctx.clearRect(0, 0, W, H);
+
+        // ピークエンベロープ抽出（音量補正：BにはgainBtoAを掛けて公平比較）
+        const envelope = (buf, gain) => {
+            const ch = buf.getChannelData(0);
+            const ch2 = buf.numberOfChannels > 1 ? buf.getChannelData(1) : null;
+            const step = Math.max(1, Math.floor(buf.length / W));
+            const peaks = new Float32Array(W);
+            for (let x = 0; x < W; x++) {
+                let p = 0;
+                const start = x * step, end = Math.min(start + step, buf.length);
+                for (let i = start; i < end; i++) {
+                    let v = Math.abs(ch[i]);
+                    if (ch2) v = Math.max(v, Math.abs(ch2[i]));
+                    if (v > p) p = v;
+                }
+                peaks[x] = Math.min(1, p * gain);
+            }
+            return peaks;
+        };
+        const pa = envelope(ab.bufferA, 1.0);
+        const pb = envelope(ab.bufferB, ab.gainBtoA || 1.0);
+
+        // 差分ハイライト（背景）
+        for (let x = 0; x < W; x++) {
+            const diff = Math.abs(pa[x] - pb[x]);
+            if (diff > 0.04) {
+                ctx.fillStyle = `rgba(233,69,96,${Math.min(0.5, diff * 1.2)})`;
+                ctx.fillRect(x, 0, 1, H);
+            }
+        }
+        // 中央線
+        ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+        ctx.beginPath(); ctx.moveTo(0, mid); ctx.lineTo(W, mid); ctx.stroke();
+
+        const drawWave = (peaks, color) => {
+            ctx.strokeStyle = color; ctx.lineWidth = 1; ctx.beginPath();
+            for (let x = 0; x < W; x++) {
+                const h = peaks[x] * mid;
+                ctx.moveTo(x, mid - h); ctx.lineTo(x, mid + h);
+            }
+            ctx.stroke();
+        };
+        // A=シアン半透明、B=黄半透明（重なりが見える）
+        ctx.globalAlpha = 0.55; drawWave(pa, '#22d3ee');
+        ctx.globalAlpha = 0.55; drawWave(pb, '#facc15');
+        ctx.globalAlpha = 1.0;
     }
 
 

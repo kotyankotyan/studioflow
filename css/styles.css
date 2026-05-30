@@ -2029,6 +2029,19 @@ body {
 .ab-toggle-btn { font-weight: 700; flex: 1; }
 .ab-toggle-btn:hover, .ab-transport button:hover { opacity: 0.85; }
 .ab-status { font-size: 11px; color: var(--text-secondary); }
+.ab-overlay-wrap { margin-top: 8px; }
+#ab-overlay-canvas {
+    width: 100%;
+    height: 120px;
+    background: var(--bg-primary, #0d0d14);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    display: block;
+}
+.ab-overlay-legend { display: flex; gap: 12px; font-size: 10px; margin-top: 4px; }
+.ab-overlay-legend .ab-leg-a { color: #22d3ee; }
+.ab-overlay-legend .ab-leg-b { color: #facc15; }
+.ab-overlay-legend .ab-leg-diff { color: #e94560; }
 
 /* ============================================ */
 /* MODALS                                        */
