@@ -34,10 +34,10 @@
     top: calc(100% + 6px);
     bottom: auto;
 }
-/* 左サイドバーは overflow:auto でツールチップがクリップされ、狭い幅に
-   折り返してボタンに重なるため、カスタムツールチップを無効化し
-   ブラウザ標準のツールチップ（クリップされない）に任せる。 */
-#left-sidebar [title]:hover::after { display: none !important; }
+/* overflow:auto 領域内はカスタムツールチップがクリップされてボタンに
+   重なるため、ブラウザ標準のツールチップ（クリップされない）に任せる。 */
+#left-sidebar [title]:hover::after,
+#bottom-panel [title]:hover::after { display: none !important; }
 :root {
     --bg-primary: #1a1a2e;
     --bg-secondary: #16213e;
@@ -159,6 +159,35 @@ body {
 }
 .transport-controls button:hover { background: var(--bg-surface-hover); }
 .transport-controls button.active { background: var(--accent); border-color: var(--accent); }
+
+/* 再生ボタンだけ大きく・目立つデザインに */
+#btn-play {
+    width: 42px;
+    height: 42px;
+    border-radius: 50% !important;
+    background: var(--accent-secondary) !important;
+    border-color: var(--accent-secondary) !important;
+    color: white !important;
+    font-size: 15px !important;
+    box-shadow: 0 0 14px rgba(14, 165, 233, 0.45);
+    transition: box-shadow 0.2s, transform 0.15s, background 0.2s !important;
+}
+#btn-play:hover {
+    background: #0b8fd1 !important;
+    box-shadow: 0 0 22px rgba(14, 165, 233, 0.65);
+    transform: scale(1.07);
+}
+#btn-play.playing {
+    background: var(--accent) !important;
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 18px rgba(233, 69, 96, 0.55);
+}
+
+/* 停止ボタン */
+#btn-stop {
+    color: var(--text-secondary);
+}
+#btn-stop:hover { color: var(--accent); }
 
 .time-display {
     font-family: 'Courier New', monospace;
@@ -989,7 +1018,9 @@ body {
     flex-direction: column;
     gap: 4px;
     border-right: 1px solid var(--border);
+    transition: background 0.15s;
 }
+.track-header:hover { background: var(--bg-surface); }
 .track-header-top {
     display: flex;
     align-items: center;
@@ -1009,11 +1040,12 @@ body {
 .track-name:focus { background: var(--bg-surface); outline: 1px solid var(--accent-secondary); }
 
 .track-color {
-    width: 4px;
+    width: 5px;
     height: 100%;
     position: absolute;
     left: 0;
     top: 0;
+    border-radius: 0 2px 2px 0;
 }
 
 .track-controls {
@@ -1115,16 +1147,24 @@ body {
 .clip {
     position: absolute;
     top: 4px; bottom: 4px;
-    background: rgba(74, 158, 255, 0.08);
-    border: 1px solid rgba(74, 158, 255, 0.4);
+    background: rgba(74, 158, 255, 0.14);
+    border: 1px solid rgba(74, 158, 255, 0.55);
     border-radius: var(--radius-sm);
     overflow: hidden;
     cursor: pointer;
-    transition: border-color var(--transition);
+    transition: border-color var(--transition), background var(--transition), box-shadow var(--transition);
     min-width: 4px;
 }
-.clip:hover { border-color: rgba(74, 158, 255, 0.7); }
-.clip.selected { border-color: var(--accent); box-shadow: 0 0 8px rgba(233, 69, 96, 0.3); }
+.clip:hover {
+    border-color: rgba(74, 158, 255, 0.85);
+    background: rgba(74, 158, 255, 0.2);
+    box-shadow: 0 0 6px rgba(74, 158, 255, 0.2);
+}
+.clip.selected {
+    border-color: var(--accent);
+    background: rgba(233, 69, 96, 0.12);
+    box-shadow: 0 0 10px rgba(233, 69, 96, 0.4);
+}
 
 /* ════════════════════════════════════
    FX クリップ / スウィープFXシステム
@@ -1363,7 +1403,7 @@ body {
     z-index: 50;
     pointer-events: none;
     left: 180px;
-    box-shadow: 0 0 6px rgba(233, 69, 96, 0.5);
+    box-shadow: 0 0 8px rgba(233, 69, 96, 0.6), 0 0 2px rgba(233, 69, 96, 0.9);
 }
 #playhead::before {
     content: '';
@@ -1372,6 +1412,16 @@ body {
     width: 12px; height: 12px;
     background: var(--playhead);
     clip-path: polygon(0 0, 100% 0, 50% 100%);
+    filter: drop-shadow(0 0 3px rgba(233, 69, 96, 0.8));
+}
+
+/* 再生中はプレイヘッドがわずかにグロウ */
+@keyframes playhead-glow {
+    0%, 100% { box-shadow: 0 0 8px rgba(233, 69, 96, 0.6), 0 0 2px rgba(233, 69, 96, 0.9); }
+    50% { box-shadow: 0 0 14px rgba(233, 69, 96, 0.9), 0 0 4px rgba(233, 69, 96, 1); }
+}
+#playhead.playing {
+    animation: playhead-glow 1.5s ease-in-out infinite;
 }
 
 #right-sidebar {
@@ -1491,9 +1541,18 @@ body {
     transition: var(--transition);
     font-family: inherit;
     flex-shrink: 0;
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
 }
-.bottom-tab:hover { color: var(--text-primary); }
-.bottom-tab.active { color: var(--accent-secondary); border-bottom-color: var(--accent-secondary); }
+.bottom-tab:hover {
+    color: var(--text-primary);
+    background: rgba(255,255,255,0.04);
+}
+.bottom-tab.active {
+    color: var(--accent-secondary);
+    border-bottom-color: var(--accent-secondary);
+    background: rgba(14, 165, 233, 0.08);
+    font-weight: 600;
+}
 
 .bottom-content {
     flex: 1;
@@ -1529,12 +1588,24 @@ body {
     align-items: center;
     gap: 3px;
     min-width: 66px;
-    padding: 6px;
+    padding: 0;
     background: var(--bg-surface);
     border-radius: var(--radius);
     height: 100%;
     overflow: hidden;
     justify-content: flex-start;
+    border: 1px solid var(--border);
+    transition: border-color 0.2s;
+}
+.mixer-channel:hover { border-color: var(--border-light); }
+.mixer-channel-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 6px;
+    width: 100%;
+    flex: 1;
 }
 .mixer-channel h4 {
     font-size: 11px;
@@ -1545,6 +1616,12 @@ body {
     max-width: 56px;
     text-align: center;
     flex-shrink: 0;
+}
+.mixer-channel-stripe {
+    width: 100%;
+    height: 3px;
+    flex-shrink: 0;
+    border-radius: var(--radius) var(--radius) 0 0;
 }
 .meter-container { display: flex; gap: 2px; height: 52px; flex-shrink: 0; }
 .meter { border-radius: 2px; background: var(--bg-primary); }

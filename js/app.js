@@ -2328,6 +2328,8 @@ class StudioFlowDAW {
             ch.dataset.trackId = track.id;
             const trackNameShort = track.name.length > 8 ? track.name.replace(/^[^\s]+\s*/,'').substring(0,8) + '…' : track.name;
             ch.innerHTML = `
+                <div class="mixer-channel-stripe" style="background:${track.color || '#4a9eff'}"></div>
+                <div class="mixer-channel-inner">
                 <h4 title="${escapeHtml(track.name)}">${escapeHtml(trackNameShort)}</h4>
                 <div class="mixer-eq-section">
                     <div class="mixer-eq-row">
@@ -2356,6 +2358,7 @@ class StudioFlowDAW {
                 <div class="mixer-buttons">
                     <button class="mixer-mute ${track.muted ? 'active-mute' : ''}" data-track-id="${track.id}">M</button>
                     <button class="mixer-solo ${track.solo ? 'active-solo' : ''}" data-track-id="${track.id}">S</button>
+                </div>
                 </div>
             `;
             // EQノブ
@@ -3381,8 +3384,9 @@ class StudioFlowDAW {
     _setupEventListeners() {
         // Transport
         const playBtn = document.getElementById('btn-play');
-        const _setPlayIcon  = () => { playBtn.innerHTML = '<i class="fas fa-play"></i>';  playBtn.classList.remove('active'); playBtn.title = '再生'; };
-        const _setPauseIcon = () => { playBtn.innerHTML = '<i class="fas fa-pause"></i>'; playBtn.classList.add('active');    playBtn.title = '一時停止'; };
+        const playhead = document.getElementById('playhead');
+        const _setPlayIcon  = () => { playBtn.innerHTML = '<i class="fas fa-play"></i>';  playBtn.classList.remove('active', 'playing'); if(playhead) playhead.classList.remove('playing'); playBtn.title = '再生'; };
+        const _setPauseIcon = () => { playBtn.innerHTML = '<i class="fas fa-pause"></i>'; playBtn.classList.add('active', 'playing'); if(playhead) playhead.classList.add('playing'); playBtn.title = '一時停止'; };
 
         playBtn.addEventListener('click', () => {
             this.audioEngine.resume();
