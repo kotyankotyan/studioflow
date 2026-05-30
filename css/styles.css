@@ -93,8 +93,8 @@ body {
 #top-bar {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 6px 12px;
+    gap: 6px;
+    padding: 6px 10px;
     background: var(--bg-secondary);
     border-bottom: 1px solid var(--border);
     min-height: 48px;
@@ -109,18 +109,22 @@ body {
 .logo {
     display: flex;
     align-items: center;
-    gap: 6px;
-    font-size: 16px;
+    gap: 5px;
+    font-size: 15px;
     font-weight: 700;
     color: var(--accent);
     flex-shrink: 0;
 }
-.logo i { font-size: 18px; }
+.logo i { font-size: 17px; }
+/* 狭い画面ではロゴ文字を隠してアイコンのみ（重なり防止・省スペース） */
+@media (max-width: 1100px) {
+    .logo span { display: none; }
+}
 
 .transport-controls {
     display: flex;
     align-items: center;
-    gap: 3px;
+    gap: 2px;
     flex: 1 1 auto;
     min-width: 0;
     /* 折り返して全コントロールを必ず表示・クリック可能にする */
@@ -154,12 +158,12 @@ body {
 
 .time-display {
     font-family: 'Courier New', monospace;
-    font-size: 12px;
-    padding: 3px 8px;
+    font-size: 11px;
+    padding: 3px 6px;
     background: var(--bg-primary);
     border-radius: var(--radius-sm);
-    margin-left: 6px;
-    letter-spacing: 0.5px;
+    margin-left: 4px;
+    letter-spacing: 0;
     white-space: nowrap;
     flex-shrink: 1;
     min-width: 0;
