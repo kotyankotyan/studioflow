@@ -1035,14 +1035,28 @@ class StudioFlowDAW {
                 track._msDebounceTimer = null;
             }
 
-            // オリジナルバッファを復元（バッファ編集・ボーカル除去の取り消し）
-            const origBuf = track._msOriginalBuffer || track._originalBuffer;
-            if (origBuf) {
-                track.clips[0].buffer = origBuf;
-                track.clips[0].duration = origBuf.duration;
-                track.clips[0].offset = 0;
-                track._saved = false;
+            // オリジナルバッファを復元（バッファ編集・カット・ボーカル除去をすべて取り消し）
+            const origBuf = track._msOriginalBuffer || track._originalBuffer || track._pristineBuffer;
+            if (origBuf && track.clips[0]) {
+                // 分割されたクリップを1つに戻し、元の音源・全長・ゲイン1.0へ
+                const base = track.clips[0];
+                track.clips = [{
+                    id: base.id,
+                    name: (base.name || 'クリップ').replace(/ \((前|後)\)$/, ''),
+                    buffer: origBuf,
+                    startTime: 0,
+                    duration: origBuf.duration,
+                    offset: 0,
+                    _gain: 1.0,
+                    _saved: false
+                }];
+            } else {
+                // 元音源が無い場合でもゲイン・位置だけは初期化
+                track.clips.forEach(c => { c._gain = 1.0; c.startTime = c.startTime; });
             }
+            // FXクリップ（フィルタースウィープ等）をすべて削除
+            track.fxClips = [];
+            this._renderFxLane?.(track);
 
             // パラメータをデフォルト値にリセット
             track.volume  = 0.85;
@@ -1068,6 +1082,10 @@ class StudioFlowDAW {
                 track.nodes.reverbWet.gain.setValueAtTime(0, now);
                 track.nodes.reverbDry.gain.setValueAtTime(1, now);
             }
+
+            // クリップDOMを作り直して見た目も初期状態に
+            this._rerenderTrackClips(track);
+            this._updateTrackHeader?.(track);
         });
 
         // マスターEQもリセット
@@ -1089,11 +1107,21 @@ class StudioFlowDAW {
             this.audioEngine.play(this.tracks);
         }
 
+        // マスターEQスライダーのUIも同期
+        this._syncMasterEQSliders?.();
+
+        // Undo/Redo履歴をクリア（初期化は元に戻せない区切り）
+        this.undoStack = [];
+        this.redoStack = [];
+        this._updateUndoButtons();
+
         this._renderEasyCards();
         // 上級者モードのスライダーも同期
         this._syncAdvancedTrackHeaders();
         this._updateMixerUI();
-        this._toast('✅ 初期状態に戻しました（音量・EQ・リバーブ・ボーカル除去リセット済み）', 'success');
+        this._updateCanvasAreaWidths?.();
+        this._saveProject?.();
+        this._toast('✅ すべての編集を取り消し、当初の状態に戻しました（カット・フェード・EQ・音量・FX）', 'success');
     }
 
     async _clearProject() {
@@ -1590,6 +1618,7 @@ class StudioFlowDAW {
             startY = e.clientY;
             startGain = clip._gain;
             originalLeft = parseFloat(clipDiv.style.left) || 0;
+            this._dragStartState = this._captureState(); // ドラッグ前状態（Undo用）
             e.preventDefault();
         });
 
@@ -1638,10 +1667,13 @@ class StudioFlowDAW {
             if (!isDragging) return;
             isDragging = false;
             gainOverlay.style.display = 'none';
-            if (dragMode === 'vertical') {
-                _redrawWithGain();
+            if (dragMode === 'vertical' || dragMode === 'horizontal') {
+                // 実際に編集が起きた場合のみUndo記録
+                if (this._dragStartState) this._pushUndo(this._dragStartState);
+                if (dragMode === 'vertical') _redrawWithGain();
                 this._saveProject?.();
             }
+            this._dragStartState = null;
             dragMode = null;
         };
 
@@ -1746,6 +1778,10 @@ class StudioFlowDAW {
         const zcBufferSec = this._findZeroCrossing(clip.buffer, bufferTargetSec);
         // 補正分をタイムライン座標に反映
         cutTime = clip.startTime + (zcBufferSec - clipOffset);
+
+        // 分割前の状態をUndoスタックへ
+        if (!track._pristineBuffer) track._pristineBuffer = clip.buffer;
+        this._pushUndo();
 
         const relCut = cutTime - clip.startTime;
         const clip1 = { id: 'clip_' + Date.now() + '_a', name: clip.name + ' (前)', buffer: clip.buffer, startTime: clip.startTime, duration: relCut, offset: clip.offset || 0 };
@@ -2829,6 +2865,10 @@ class StudioFlowDAW {
     }
 
     _applyBufferToClip(track, clip, newBuffer) {
+        // 編集前の状態をUndoスタックへ記録（全バッファ編集の共通入口）
+        if (!track._pristineBuffer) track._pristineBuffer = clip.buffer; // 初回編集時の元音源を保持
+        this._pushUndo();
+
         // 再生中の場合は一時停止してから適用（旧バッファのまま再生が続くのを防ぐ）
         const wasPlaying = this.audioEngine.isPlaying;
         if (wasPlaying) {
@@ -2843,7 +2883,124 @@ class StudioFlowDAW {
         this._updateCanvasAreaWidths?.();
         this._saveProject(); // 即時保存
         if (this.easyMode) this._renderEasyCards?.();
+        this._updateUndoButtons();
         if (wasPlaying) this._toast('適用しました。▶ 再生で確認できます', 'info');
+    }
+
+    // ============================================
+    // UNDO / REDO（スナップショット方式）
+    // バッファ編集・カット・削除など破壊的操作の直前に
+    // _pushUndo() で現在状態を保存。バッファは不変なので参照保持で軽量。
+    // ============================================
+    _captureState() {
+        const bands = ['low', 'lowmid', 'mid', 'highmid', 'high'];
+        return {
+            bpm: this.audioEngine.bpm,
+            originalBpm: this.audioEngine.originalBpm,
+            bpmRatio: this.audioEngine.bpmRatio,
+            masterEQ: bands.map(b => this.audioEngine.masterEQ[b]?.gain.value ?? 0),
+            tracks: this.tracks.map(t => ({
+                id: t.id,
+                volume: t.volume, pan: t.pan, muted: t.muted, solo: t.solo,
+                eqLow: t.nodes?.eqLow?.gain.value ?? 0,
+                eqMid: t.nodes?.eqMid?.gain.value ?? 0,
+                eqHigh: t.nodes?.eqHigh?.gain.value ?? 0,
+                reverbWet: t.nodes?.reverbWet?.gain.value ?? 0,
+                fxClips: (t.fxClips || []).map(f => ({ ...f })),
+                clips: t.clips.map(c => ({
+                    id: c.id, name: c.name, buffer: c.buffer,
+                    startTime: c.startTime, duration: c.duration,
+                    offset: c.offset || 0, _gain: c._gain ?? 1.0
+                }))
+            }))
+        };
+    }
+
+    _applyState(s) {
+        if (!s) return;
+        this.audioEngine.bpm = s.bpm;
+        this.audioEngine.originalBpm = s.originalBpm;
+        this.audioEngine.bpmRatio = s.bpmRatio;
+        const bpmInput = document.getElementById('bpm-input');
+        if (bpmInput) bpmInput.value = s.bpm;
+        const bands = ['low', 'lowmid', 'mid', 'highmid', 'high'];
+        s.masterEQ.forEach((v, i) => this.audioEngine.setMasterEQ(bands[i], v));
+
+        // 再生中なら一旦停止（古いソースが残らないように）
+        if (this.audioEngine.isPlaying) {
+            this.audioEngine.stop();
+            const pb = document.getElementById('btn-play');
+            if (pb) { pb.innerHTML = '<i class="fas fa-play"></i>'; pb.classList.remove('active'); }
+        }
+
+        const now = this.audioEngine.ctx.currentTime;
+        s.tracks.forEach(ts => {
+            const track = this.tracks.find(t => t.id === ts.id);
+            if (!track) return;
+            track.volume = ts.volume; track.pan = ts.pan; track.muted = ts.muted; track.solo = ts.solo;
+            if (track.nodes) {
+                track.nodes.gainNode.gain.setValueAtTime(ts.muted ? 0 : ts.volume, now);
+                track.nodes.panNode.pan.setValueAtTime(ts.pan, now);
+                track.nodes.eqLow?.gain.setValueAtTime(ts.eqLow, now);
+                track.nodes.eqMid?.gain.setValueAtTime(ts.eqMid, now);
+                track.nodes.eqHigh?.gain.setValueAtTime(ts.eqHigh, now);
+                if (track.nodes.reverbWet) {
+                    track.nodes.reverbWet.gain.setValueAtTime(ts.reverbWet, now);
+                    track.nodes.reverbDry?.gain.setValueAtTime(1, now);
+                }
+            }
+            track.fxClips = ts.fxClips.map(f => ({ ...f }));
+            track.clips = ts.clips.map(c => ({
+                id: c.id, name: c.name, buffer: c.buffer,
+                startTime: c.startTime, duration: c.duration,
+                offset: c.offset, _gain: c._gain, _saved: false
+            }));
+            this._rerenderTrackClips(track);
+            this._renderFxLane?.(track);
+            this._updateTrackHeader?.(track);
+        });
+        this._updateCanvasAreaWidths?.();
+        this._updateMixerUI?.();
+        if (this.easyMode) this._renderEasyCards?.();
+        this._saveProject?.();
+    }
+
+    _rerenderTrackClips(track) {
+        const trackDiv = document.querySelector(`[data-track-id="${track.id}"].track`);
+        if (!trackDiv) return;
+        const area = trackDiv.querySelector('.track-canvas-area');
+        if (area) area.querySelectorAll('.clip').forEach(el => el.remove());
+        track.clips.forEach(c => this._renderClip(track, c));
+    }
+
+    _pushUndo(state) {
+        this.undoStack.push(state || this._captureState());
+        if (this.undoStack.length > 50) this.undoStack.shift();
+        this.redoStack = [];
+        this._updateUndoButtons();
+    }
+
+    _undo() {
+        if (!this.undoStack.length) { this._toast('元に戻す操作がありません', 'info'); return; }
+        this.redoStack.push(this._captureState());
+        this._applyState(this.undoStack.pop());
+        this._updateUndoButtons();
+        this._toast('元に戻しました', 'success');
+    }
+
+    _redo() {
+        if (!this.redoStack.length) { this._toast('やり直す操作がありません', 'info'); return; }
+        this.undoStack.push(this._captureState());
+        this._applyState(this.redoStack.pop());
+        this._updateUndoButtons();
+        this._toast('やり直しました', 'success');
+    }
+
+    _updateUndoButtons() {
+        const u = document.getElementById('btn-undo');
+        const r = document.getElementById('btn-redo');
+        if (u) u.disabled = this.undoStack.length === 0;
+        if (r) r.disabled = this.redoStack.length === 0;
     }
 
     _setupProToolsListeners() {
@@ -3237,8 +3394,9 @@ class StudioFlowDAW {
             e.currentTarget.classList.toggle('active', this.audioEngine.loopEnabled);
         });
 
-        document.getElementById('btn-undo').addEventListener('click', () => this._toast('Undo機能は近日実装予定', 'info'));
-        document.getElementById('btn-redo').addEventListener('click', () => this._toast('Redo機能は近日実装予定', 'info'));
+        document.getElementById('btn-undo').addEventListener('click', () => this._undo());
+        document.getElementById('btn-redo').addEventListener('click', () => this._redo());
+        this._updateUndoButtons();
 
         document.getElementById('btn-add-track').addEventListener('click', () => {
             this.addTrack();
@@ -3856,6 +4014,7 @@ class StudioFlowDAW {
                     if (this.selectedClip && this.selectedTrack) {
                         const idx = this.selectedTrack.clips.indexOf(this.selectedClip);
                         if (idx >= 0) {
+                            this._pushUndo();
                             this.selectedTrack.clips.splice(idx, 1);
                             document.querySelector(`[data-clip-id="${this.selectedClip.id}"]`)?.remove();
                             this.selectedClip = null;
